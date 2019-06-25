@@ -1,0 +1,145 @@
+type ChangedPhase @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _newPhase: BigInt! # uint256
+  _timestamp: BigInt! # uint256
+  _totalFundsInDAI: BigInt! # uint256
+}
+
+type Deposit @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _tokenAddress: Bytes! # address
+  _tokenAmount: BigInt! # uint256
+  _daiAmount: BigInt! # uint256
+  _timestamp: BigInt! # uint256
+}
+
+type Withdraw @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _tokenAddress: Bytes! # address
+  _tokenAmount: BigInt! # uint256
+  _daiAmount: BigInt! # uint256
+  _timestamp: BigInt! # uint256
+}
+
+type CreatedInvestment @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _id: BigInt! # uint256
+  _tokenAddress: Bytes! # address
+  _stakeInWeis: BigInt! # uint256
+  _buyPrice: BigInt! # uint256
+  _costDAIAmount: BigInt! # uint256
+}
+
+type SoldInvestment @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _investmentId: BigInt! # uint256
+  _receivedKairo: BigInt! # uint256
+  _sellPrice: BigInt! # uint256
+  _earnedDAIAmount: BigInt! # uint256
+}
+
+type CreatedCompoundOrder @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _order: Bytes! # address
+  _orderType: Boolean! # bool
+  _tokenAddress: Bytes! # address
+  _stakeInWeis: BigInt! # uint256
+  _costDAIAmount: BigInt! # uint256
+}
+
+type SoldCompoundOrder @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _order: Bytes! # address
+  _orderType: Boolean! # bool
+  _tokenAddress: Bytes! # address
+  _receivedKairo: BigInt! # uint256
+  _earnedDAIAmount: BigInt! # uint256
+}
+
+type RepaidCompoundOrder @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _order: Bytes! # address
+  _repaidDAIAmount: BigInt! # uint256
+}
+
+type CommissionPaid @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _commission: BigInt! # uint256
+}
+
+type TotalCommissionPaid @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _totalCommissionInDAI: BigInt! # uint256
+}
+
+type Register @entity {
+  id: ID!
+  _manager: Bytes! # address
+  _block: BigInt! # uint256
+  _donationInDAI: BigInt! # uint256
+}
+
+type SignaledUpgrade @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _sender: Bytes! # address
+  _inSupport: Boolean! # bool
+}
+
+type DeveloperInitiatedUpgrade @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _candidate: Bytes! # address
+}
+
+type InitiatedUpgrade @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+}
+
+type ProposedCandidate @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _voteID: BigInt! # uint256
+  _sender: Bytes! # address
+  _candidate: Bytes! # address
+}
+
+type Voted @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _voteID: BigInt! # uint256
+  _sender: Bytes! # address
+  _inSupport: Boolean! # bool
+  _weight: BigInt! # uint256
+}
+
+type FinalizedNextVersion @entity {
+  id: ID!
+  _cycleNumber: BigInt! # uint256
+  _nextVersion: Bytes! # address
+}
+
+type OwnershipTransferred @entity {
+  id: ID!
+  previousOwner: Bytes! # address
+  newOwner: Bytes! # address
+}

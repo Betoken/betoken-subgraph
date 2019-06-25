@@ -1,0 +1,74 @@
+specVersion: 0.0.1
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: Contract
+    network: mainnet
+    source:
+      address: "0x4769890a00FB46cBd9C3F771Cc60FdEE439Bb230"
+      abi: Contract
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.2
+      language: wasm/assemblyscript
+      entities:
+        - ChangedPhase
+        - Deposit
+        - Withdraw
+        - CreatedInvestment
+        - SoldInvestment
+        - CreatedCompoundOrder
+        - SoldCompoundOrder
+        - RepaidCompoundOrder
+        - CommissionPaid
+        - TotalCommissionPaid
+        - Register
+        - SignaledUpgrade
+        - DeveloperInitiatedUpgrade
+        - InitiatedUpgrade
+        - ProposedCandidate
+        - Voted
+        - FinalizedNextVersion
+        - OwnershipTransferred
+      abis:
+        - name: Contract
+          file: ./abis/Contract.json
+      eventHandlers:
+        - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
+          handler: handleChangedPhase
+        - event: Deposit(indexed uint256,indexed address,address,uint256,uint256,uint256)
+          handler: handleDeposit
+        - event: Withdraw(indexed uint256,indexed address,address,uint256,uint256,uint256)
+          handler: handleWithdraw
+        - event: CreatedInvestment(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256)
+          handler: handleCreatedInvestment
+        - event: SoldInvestment(indexed uint256,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleSoldInvestment
+        - event: CreatedCompoundOrder(indexed uint256,indexed address,address,bool,address,uint256,uint256)
+          handler: handleCreatedCompoundOrder
+        - event: SoldCompoundOrder(indexed uint256,indexed address,address,bool,address,uint256,uint256)
+          handler: handleSoldCompoundOrder
+        - event: RepaidCompoundOrder(indexed uint256,indexed address,address,uint256)
+          handler: handleRepaidCompoundOrder
+        - event: CommissionPaid(indexed uint256,indexed address,uint256)
+          handler: handleCommissionPaid
+        - event: TotalCommissionPaid(indexed uint256,uint256)
+          handler: handleTotalCommissionPaid
+        - event: Register(indexed address,indexed uint256,uint256)
+          handler: handleRegister
+        - event: SignaledUpgrade(indexed uint256,indexed address,indexed bool)
+          handler: handleSignaledUpgrade
+        - event: DeveloperInitiatedUpgrade(indexed uint256,address)
+          handler: handleDeveloperInitiatedUpgrade
+        - event: InitiatedUpgrade(indexed uint256)
+          handler: handleInitiatedUpgrade
+        - event: ProposedCandidate(indexed uint256,indexed uint256,indexed address,address)
+          handler: handleProposedCandidate
+        - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
+          handler: handleVoted
+        - event: FinalizedNextVersion(indexed uint256,address)
+          handler: handleFinalizedNextVersion
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+      file: ./src/mapping.ts
