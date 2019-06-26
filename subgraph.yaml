@@ -56,6 +56,4 @@ dataSources:
           handler: handleVoted
         - event: FinalizedNextVersion(indexed uint256,address)
           handler: handleFinalizedNextVersion
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
       file: ./src/mapping.ts

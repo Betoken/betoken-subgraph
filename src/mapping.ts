@@ -68,9 +68,10 @@ export const assetPTokenAddressToInfo = (_addr) => {
 
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let entity = Fund.load("0");
+  let fund = BetokenFund.bind(event.address)
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = CyclePhase[event.params._newPhase.toI32()]
-  if (!entity.hasFinalizedNextVersion) {
+  if (!fund.hasFinalizedNextVersion()) {
     entity.candidates.length = 0
     entity.proposers.length = 0
     entity.forVotes.length = 0
@@ -218,49 +219,37 @@ export function handleInitiatedUpgrade(event: InitiatedUpgradeEvent): void {
 
 export function handleProposedCandidate(event: ProposedCandidateEvent): void {
   let entity = Fund.load("0")
-  let voteID = event.params._voteID
-  if (voteID.gt(BigInt.fromI32(entity.candidates.length - 1))) {
-    // candidate for new chunk, push
-    entity.candidates.push(event.params._candidate.toHex())
-    entity.proposers.push(event.params._sender.toHex())
-  } else {
-    // update current chunk
-    entity.candidates[voteID.toI32()] = event.params._candidate.toHex()
-    entity.proposers[voteID.toI32()] = event.params._sender.toHex()
+  let fund = BetokenFund.bind(event.address)
+  let candidates = new Array<string>(5)
+  let proposers = new Array<string>(5)
+  for (let i = 0; i < 5; i++) {
+    candidates[i] = fund.candidates(BigInt.fromI32(i)).toHex()
+    proposers[i] = fund.proposers(BigInt.fromI32(i)).toHex()
   }
+  entity.candidates = candidates
+  entity.proposers = proposers 
   entity.save()
 }
 
 export function handleVoted(event: VotedEvent): void {
-  let entity = new Voted(
-    event.transaction.hash.toHex() + "-" + event.logIndex.toString()
-  )
-  entity._cycleNumber = event.params._cycleNumber
-  entity._voteID = event.params._voteID
-  entity._sender = event.params._sender
-  entity._inSupport = event.params._inSupport
-  entity._weight = event.params._weight
+  let entity = Fund.load("0")
+  let fund = BetokenFund.bind(event.address)
+  let forVotes = new Array<BigInt>(5)
+  let againstVotes = new Array<BigInt>(5)
+  for (let i = 0; i < 5; i++) {
+    forVotes[i] = fund.forVotes(BigInt.fromI32(i))
+    againstVotes[i] = fund.againstVotes(BigInt.fromI32(i))
+  }
+  entity.forVotes = forVotes
+  entity.againstVotes = againstVotes
   entity.save()
 }
 
 export function handleFinalizedNextVersion(
   event: FinalizedNextVersionEvent
 ): void {
-  let entity = new FinalizedNextVersion(
-    event.transaction.hash.toHex() + "-" + event.logIndex.toString()
-  )
-  entity._cycleNumber = event.params._cycleNumber
-  entity._nextVersion = event.params._nextVersion
-  entity.save()
-}
-
-export function handleOwnershipTransferred(
-  event: OwnershipTransferredEvent
-): void {
-  let entity = new OwnershipTransferred(
-    event.transaction.hash.toHex() + "-" + event.logIndex.toString()
-  )
-  entity.previousOwner = event.params.previousOwner
-  entity.newOwner = event.params.newOwner
+  let entity = Fund.load("0")
+  entity.hasFinalizedNextVersion = true
+  entity.nextVersion = event.params._nextVersion.toString()
   entity.save()
 }
