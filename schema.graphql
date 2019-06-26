@@ -11,7 +11,7 @@ enum VoteDirection {
 
 type Manager @entity {
   id: ID! # address
-  kairoBalance: BigInt
+  kairoBalance: BigInt #TODO
   kairoBalanceWithStake: BigInt # TODO
   kairoBalanceWithStakeHistory: [DataPoint!] # TODO
   baseStake: BigInt
@@ -46,16 +46,17 @@ type CompoundOrder @entity {
   cycleNumber: BigInt
   stake: BigInt
   collateralAmountInDAI: BigInt
-  collateralRatio: BigInt # TODO
-  currProfit: BigInt # TODO
-  currCollateral: BigInt # TODO
-  currBorrow: BigInt # TODO
-  currCash: BigInt # TODO
-  minCollateralRatio: BigInt # TODO
-  outputAmount: BigInt # TODO
+  collateralRatio: BigInt
+  currProfit: BigInt
+  currCollateral: BigInt
+  currBorrow: BigInt
+  currCash: BigInt
+  minCollateralRatio: BigInt
+  outputAmount: BigInt
   buyTime: BigInt
   isSold: Boolean
   isShort: Boolean
+  orderAddress: String
 }
 
 type FulcrumOrder @entity {
@@ -96,7 +97,7 @@ type DepositWithdraw @entity {
 }
 
 type Fund @entity {
-  id: ID! # always 0
+  id: ID! # always empty string
   cycleNumber: BigInt
   cyclePhase: CyclePhase
   startTimeOfCyclePhase: BigInt # TODO
@@ -107,6 +108,7 @@ type Fund @entity {
   sharesTotalSupply: BigInt # TODO
   sharesPriceHistory: [DataPoint!] # TODO
   cycleTotalCommission: BigInt # TODO
+  managers: [Manager!]
   # upgrade governance related
   hasFinalizedNextVersion: Boolean
   upgradeVotingActive: Boolean

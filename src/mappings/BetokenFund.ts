@@ -18,7 +18,7 @@ import {
   FinalizedNextVersion as FinalizedNextVersionEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
   BetokenFund
-} from "../generated/BetokenFund/BetokenFund"
+} from "../../generated/BetokenFund/BetokenFund"
 
 import {
   Manager,
@@ -30,9 +30,11 @@ import {
   DepositWithdraw,
   Fund,
   DataPoint
-} from "../generated/schema"
+} from "../../generated/schema"
 
-import { BigInt } from '@graphprotocol/graph-ts'
+import { CompoundOrderContract } from '../../generated/BetokenFund/templates/CompoundOrderContract/CompoundOrderContract'
+
+import { BigInt, Address } from '@graphprotocol/graph-ts'
 
 enum CyclePhase {
   INTERMISSION,
@@ -50,6 +52,7 @@ enum VoteDirection {
 const PTOKENS = require('./fulcrum_tokens.json');
 const RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
 const ZERO = BigInt.fromI32(0)
+const PRECISION = BigInt.fromI32(1e18)
 
 // Helpers
 
@@ -67,7 +70,7 @@ export const assetPTokenAddressToInfo = (_addr) => {
 // Handlers
 
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
-  let entity = Fund.load("0");
+  let entity = Fund.load("");
   let fund = BetokenFund.bind(event.address)
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = CyclePhase[event.params._newPhase.toI32()]
@@ -155,6 +158,11 @@ export function handleCreatedCompoundOrder(
   entity.collateralAmountInDAI = event.params._costDAIAmount
   entity.buyTime = event.block.timestamp
   entity.isShort = event.params._orderType
+  entity.orderAddress = event.params._order.toHex()
+
+  let contract = CompoundOrderContract.bind(event.params._order)
+  entity.minCollateralRatio = PRECISION.div(contract.getMarketCollateralFactor())
+
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
@@ -166,6 +174,7 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
   let entity = CompoundOrder.load(id)
   entity.isSold = true
+  entity.outputAmount = event.params._earnedDAIAmount
   entity.save()
 }
 
@@ -195,6 +204,10 @@ export function handleRegister(event: RegisterEvent): void {
   entity.lastCommissionRedemption = ZERO
   entity.upgradeSignal = false
   entity.save()
+
+  let fund = Fund.load("")
+  fund.managers.push(entity.id)
+  fund.save()
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
@@ -206,20 +219,20 @@ export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
 export function handleDeveloperInitiatedUpgrade(
   event: DeveloperInitiatedUpgradeEvent
 ): void {
-  let entity = Fund.load("0")
+  let entity = Fund.load("")
   entity.upgradeVotingActive = true
   entity.nextVersion = event.params._candidate.toHex()
   entity.save()
 }
 
 export function handleInitiatedUpgrade(event: InitiatedUpgradeEvent): void {
-  let entity = Fund.load("0")
+  let entity = Fund.load("")
   entity.upgradeVotingActive = true
   entity.save()
 }
 
 export function handleProposedCandidate(event: ProposedCandidateEvent): void {
-  let entity = Fund.load("0")
+  let entity = Fund.load("")
   let fund = BetokenFund.bind(event.address)
   let candidates = new Array<string>(5)
   let proposers = new Array<string>(5)
@@ -233,7 +246,7 @@ export function handleProposedCandidate(event: ProposedCandidateEvent): void {
 }
 
 export function handleVoted(event: VotedEvent): void {
-  let entity = Fund.load("0")
+  let entity = Fund.load("")
   let fund = BetokenFund.bind(event.address)
   let forVotes = new Array<BigInt>(5)
   let againstVotes = new Array<BigInt>(5)
@@ -256,8 +269,42 @@ export function handleVoted(event: VotedEvent): void {
 export function handleFinalizedNextVersion(
   event: FinalizedNextVersionEvent
 ): void {
-  let entity = Fund.load("0")
+  let entity = Fund.load("")
   entity.hasFinalizedNextVersion = true
   entity.nextVersion = event.params._nextVersion.toString()
   entity.save()
+}
+
+// block handler
+
+import { EthereumBlock } from '@graphprotocol/graph-ts'
+
+export function handleBlock(block: EthereumBlock): void {
+  let fund = Fund.load("")
+  for (let m of fund.managers) {
+    let manager = Manager.load(m)
+    // basic orders
+    for (let o of manager.basicOrders) {
+      let order = BasicOrder.load(o)
+      if (order.cycleNumber.equals(fund.cycleNumber)) {
+
+      }
+    }
+    // compound orders
+    for (let o of manager.compoundOrders) {
+      let order = CompoundOrder.load(o)
+      if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
+        let contract = CompoundOrderContract.bind(Address.fromHexString(order.orderAddress))
+        order.collateralRatio = contract.getCurrentCollateralRatioInDAI()
+
+        let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
+        order.currProfit = currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1))
+
+        order.currCollateral = contract.getCurrentCollateralInDAI()
+        order.currBorrow = contract.getCurrentBorrowInDAI()
+        order.currCash = contract.getCurrentCashInDAI()
+        order.save()
+      }
+    }
+  }
 }

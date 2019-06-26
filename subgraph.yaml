@@ -25,6 +25,8 @@ dataSources:
       abis:
         - name: BetokenFund
           file: ./abis/BetokenFund.json
+      blockHandlers:
+        - handler: handleBlock
       eventHandlers:
         - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
           handler: handleChangedPhase
@@ -56,4 +58,20 @@ dataSources:
           handler: handleVoted
         - event: FinalizedNextVersion(indexed uint256,address)
           handler: handleFinalizedNextVersion
-      file: ./src/mapping.ts
+      file: ./src/mappings/BetokenFund.ts
+    templates:
+      - name: CompoundOrderContract
+        kind: ethereum/contract
+        network: mainnet
+        source:
+          abi: CompoundOrderContract
+        mapping:
+          kind: ethereum/events
+          apiVersion: 0.0.3
+          language: wasm/assemblyscript
+          entities:
+            - CompoundOrder
+          file: ./src/mappings/CompoundOrderContract.ts
+          abis:
+            - name: CompoundOrderContract
+              file: ./abis/CompoundOrder.json
