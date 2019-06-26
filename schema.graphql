@@ -1,145 +1,125 @@
-type ChangedPhase @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _newPhase: BigInt! # uint256
-  _timestamp: BigInt! # uint256
-  _totalFundsInDAI: BigInt! # uint256
+enum CyclePhase {
+  INTERMISSION
+  MANAGE
 }
 
-type Deposit @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _tokenAddress: Bytes! # address
-  _tokenAmount: BigInt! # uint256
-  _daiAmount: BigInt! # uint256
-  _timestamp: BigInt! # uint256
+enum VoteDirection {
+  EMPTY
+  FOR
+  AGAINST
 }
 
-type Withdraw @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _tokenAddress: Bytes! # address
-  _tokenAmount: BigInt! # uint256
-  _daiAmount: BigInt! # uint256
-  _timestamp: BigInt! # uint256
+type Manager @entity {
+  id: ID! # address
+  kairoBalance: BigInt
+  kairoBalanceWithStake: BigInt
+  kairoBalanceWithStakeHistory: [DataPoint!]
+  baseStake: BigInt
+  riskTaken: BigInt
+  riskThreshold: BigInt
+  lastCommissionRedemption: BigInt
+  basicOrders: [BasicOrder!]
+  compoundOrders: [CompoundOrder!]
+  fulcrumOrders: [FulcrumOrder!]
+  commissionHistory: [CommissionRedemption!]
+  upgradeSignal: Boolean
+  votes: [VoteDirection!]
 }
 
-type CreatedInvestment @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _id: BigInt! # uint256
-  _tokenAddress: Bytes! # address
-  _stakeInWeis: BigInt! # uint256
-  _buyPrice: BigInt! # uint256
-  _costDAIAmount: BigInt! # uint256
+type BasicOrder @entity {
+  id: ID! # index in userInvestments[user] array + cycleNumber
+  idx: BigInt
+  tokenAddress: String
+  cycleNumber: BigInt
+  stake: BigInt
+  tokenAmount: BigInt
+  buyPrice: BigInt
+  sellPrice: BigInt
+  buyTime: BigInt
+  isSold: Boolean
 }
 
-type SoldInvestment @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _investmentId: BigInt! # uint256
-  _receivedKairo: BigInt! # uint256
-  _sellPrice: BigInt! # uint256
-  _earnedDAIAmount: BigInt! # uint256
+type CompoundOrder @entity {
+  id: ID! # index in userCompoundOrders[user] array + cycleNumber
+  idx: BigInt
+  tokenAddress: String
+  cycleNumber: BigInt
+  stake: BigInt
+  collateralAmountInDAI: BigInt
+  collateralRatio: BigInt
+  currProfit: BigInt
+  currCollateral: BigInt
+  currBorrow: BigInt
+  currCash: BigInt
+  minCollateralRatio: BigInt
+  outputAmount: BigInt
+  buyTime: BigInt
+  isSold: Boolean
+  isShort: Boolean
 }
 
-type CreatedCompoundOrder @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _order: Bytes! # address
-  _orderType: Boolean! # bool
-  _tokenAddress: Bytes! # address
-  _stakeInWeis: BigInt! # uint256
-  _costDAIAmount: BigInt! # uint256
+type FulcrumOrder @entity {
+  id: ID! # index in userInvestments[user] array + cycleNumber
+  idx: BigInt
+  tokenAddress: String
+  cycleNumber: BigInt
+  stake: BigInt
+  tokenAmount: BigInt
+  buyPrice: BigInt
+  sellPrice: BigInt
+  liquidationPrice: BigInt
+  buyTime: BigInt
+  isSold: Boolean
+  isShort: Boolean
 }
 
-type SoldCompoundOrder @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _order: Bytes! # address
-  _orderType: Boolean! # bool
-  _tokenAddress: Bytes! # address
-  _receivedKairo: BigInt! # uint256
-  _earnedDAIAmount: BigInt! # uint256
+type CommissionRedemption @entity {
+  id: ID! # tx hash
+  timestamp: BigInt
+  cycleNumber: BigInt
+  amountInDAI: BigInt
+  txHash: String
 }
 
-type RepaidCompoundOrder @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _order: Bytes! # address
-  _repaidDAIAmount: BigInt! # uint256
+type Investor @entity {
+  id: ID! # address
+  sharesBalance: BigInt
+  depositWithdrawHistory: [DepositWithdraw!]
 }
 
-type CommissionPaid @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _commission: BigInt! # uint256
+type DepositWithdraw @entity {
+  id: ID! # tx hash
+  timestamp: BigInt
+  isDeposit: Boolean
+  amountInDAI: BigInt
+  txHash: String
 }
 
-type TotalCommissionPaid @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _totalCommissionInDAI: BigInt! # uint256
+type Fund @entity {
+  id: ID! # always 0
+  cycleNumber: BigInt
+  cyclePhase: CyclePhase
+  startTimeOfCyclePhase: BigInt
+  totalFundsInDAI: BigInt
+  kairoPrice: BigInt
+  kairoTotalSupply: BigInt
+  sharesPrice: BigInt
+  sharesTotalSupply: BigInt
+  sharesPriceHistory: [DataPoint!]
+  cycleTotalCommission: BigInt
+  # upgrade governance related
+  hasFinalizedNextVersion: Boolean
+  upgradeVotingActive: Boolean
+  nextVersion: String
+  proposers: [String!]
+  candidates: [String!]
+  forVotes: [BigInt!]
+  againstVotes: [BigInt!]
+  upgradeSignalStrength: BigInt
 }
 
-type Register @entity {
-  id: ID!
-  _manager: Bytes! # address
-  _block: BigInt! # uint256
-  _donationInDAI: BigInt! # uint256
-}
-
-type SignaledUpgrade @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _sender: Bytes! # address
-  _inSupport: Boolean! # bool
-}
-
-type DeveloperInitiatedUpgrade @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _candidate: Bytes! # address
-}
-
-type InitiatedUpgrade @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-}
-
-type ProposedCandidate @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _voteID: BigInt! # uint256
-  _sender: Bytes! # address
-  _candidate: Bytes! # address
-}
-
-type Voted @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _voteID: BigInt! # uint256
-  _sender: Bytes! # address
-  _inSupport: Boolean! # bool
-  _weight: BigInt! # uint256
-}
-
-type FinalizedNextVersion @entity {
-  id: ID!
-  _cycleNumber: BigInt! # uint256
-  _nextVersion: Bytes! # address
-}
-
-type OwnershipTransferred @entity {
-  id: ID!
-  previousOwner: Bytes! # address
-  newOwner: Bytes! # address
+type DataPoint @entity {
+  id: ID! # timestamp
+  timestamp: BigInt
+  value: BigInt
 }
