@@ -12,11 +12,11 @@ enum VoteDirection {
 type Manager @entity {
   id: ID! # address
   kairoBalance: BigInt
-  kairoBalanceWithStake: BigInt
-  kairoBalanceWithStakeHistory: [DataPoint!]
+  kairoBalanceWithStake: BigInt # TODO
+  kairoBalanceWithStakeHistory: [DataPoint!] # TODO
   baseStake: BigInt
-  riskTaken: BigInt
-  riskThreshold: BigInt
+  riskTaken: BigInt # TODO
+  riskThreshold: BigInt # TODO
   lastCommissionRedemption: BigInt
   basicOrders: [BasicOrder!]
   compoundOrders: [CompoundOrder!]
@@ -34,7 +34,7 @@ type BasicOrder @entity {
   stake: BigInt
   tokenAmount: BigInt
   buyPrice: BigInt
-  sellPrice: BigInt
+  sellPrice: BigInt # TODO
   buyTime: BigInt
   isSold: Boolean
 }
@@ -46,13 +46,13 @@ type CompoundOrder @entity {
   cycleNumber: BigInt
   stake: BigInt
   collateralAmountInDAI: BigInt
-  collateralRatio: BigInt
-  currProfit: BigInt
-  currCollateral: BigInt
-  currBorrow: BigInt
-  currCash: BigInt
-  minCollateralRatio: BigInt
-  outputAmount: BigInt
+  collateralRatio: BigInt # TODO
+  currProfit: BigInt # TODO
+  currCollateral: BigInt # TODO
+  currBorrow: BigInt # TODO
+  currCash: BigInt # TODO
+  minCollateralRatio: BigInt # TODO
+  outputAmount: BigInt # TODO
   buyTime: BigInt
   isSold: Boolean
   isShort: Boolean
@@ -66,8 +66,8 @@ type FulcrumOrder @entity {
   stake: BigInt
   tokenAmount: BigInt
   buyPrice: BigInt
-  sellPrice: BigInt
-  liquidationPrice: BigInt
+  sellPrice: BigInt # TODO
+  liquidationPrice: BigInt # TODO
   buyTime: BigInt
   isSold: Boolean
   isShort: Boolean
@@ -99,14 +99,14 @@ type Fund @entity {
   id: ID! # always 0
   cycleNumber: BigInt
   cyclePhase: CyclePhase
-  startTimeOfCyclePhase: BigInt
-  totalFundsInDAI: BigInt
-  kairoPrice: BigInt
-  kairoTotalSupply: BigInt
-  sharesPrice: BigInt
-  sharesTotalSupply: BigInt
-  sharesPriceHistory: [DataPoint!]
-  cycleTotalCommission: BigInt
+  startTimeOfCyclePhase: BigInt # TODO
+  totalFundsInDAI: BigInt # TODO
+  kairoPrice: BigInt # TODO
+  kairoTotalSupply: BigInt # TODO
+  sharesPrice: BigInt # TODO
+  sharesTotalSupply: BigInt # TODO
+  sharesPriceHistory: [DataPoint!] # TODO
+  cycleTotalCommission: BigInt # TODO
   # upgrade governance related
   hasFinalizedNextVersion: Boolean
   upgradeVotingActive: Boolean

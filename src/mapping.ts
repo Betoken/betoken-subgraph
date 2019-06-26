@@ -181,6 +181,7 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
 
   let manager = Manager.load(event.params._sender.toHex())
   manager.commissionHistory.push(entity.id)
+  manager.lastCommissionRedemption = entity.cycleNumber
   manager.save()
 }
 
@@ -243,6 +244,13 @@ export function handleVoted(event: VotedEvent): void {
   entity.forVotes = forVotes
   entity.againstVotes = againstVotes
   entity.save()
+
+  let manager = Manager.load(event.params._sender.toHex())
+  let votes = new Array<string>(5)
+  for (let i = 0; i < 5; i++) {
+    votes[i] = VoteDirection[fund.managerVotes(fund.cycleNumber(), event.params._sender, BigInt.fromI32(i))]
+  }
+  manager.votes = votes
 }
 
 export function handleFinalizedNextVersion(
