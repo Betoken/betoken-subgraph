@@ -38,7 +38,7 @@ import { CompoundOrderContract } from '../../generated/BetokenFund/templates/Com
 import { PositionToken } from '../../generated/BetokenFund/templates/PositionToken/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenFund/templates/MiniMeToken/MiniMeToken'
 
-import { BigInt, Address } from '@graphprotocol/graph-ts'
+import { BigInt, Address, EthereumEvent } from '@graphprotocol/graph-ts'
 
 enum CyclePhase {
   INTERMISSION,
@@ -57,6 +57,7 @@ import {PTOKENS} from '../fulcrum_tokens'
 let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
 let ZERO = BigInt.fromI32(0)
 let CALLER_REWARD = tenPow(18) // 10 ** 18 or 1 KRO
+let PRECISION = tenPow(18)
 let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
 let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
 
@@ -73,11 +74,23 @@ function assetPTokenAddressToInfo(_addr: string): object {
   return PTOKENS.find((x) => !isUndefined(x.pTokens.find((y) => y.address === _addr))).pTokens.find((y) => y.address === _addr);
 }
 
-function updateTotalFunds(fundAddress: Address): void {
+function updateTotalFunds(fundAddress: Address, event: EthereumEvent): void {
   let fund = Fund.load("")
-  let contract = BetokenFund.bind(fundAddress)
-  fund.totalFundsInDAI = contract.totalFundsInDAI()
-  fund.kairoPrice = contract.kairoPrice()
+  let fundContract = BetokenFund.bind(fundAddress)
+  let kairo = kairoContract(fundAddress)
+  let shares = sharesContract(fundAddress)
+  fund.totalFundsInDAI = fundContract.totalFundsInDAI()
+  fund.kairoPrice = fundContract.kairoPrice()
+  fund.kairoTotalSupply = kairo.totalSupply()
+  fund.sharesPrice = fund.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
+  fund.sharesTotalSupply = shares.totalSupply()
+
+  let dp = new DataPoint(event.transaction.hash.toHex() + "-" + event.logIndex.toString())
+  dp.timestamp = event.block.timestamp
+  dp.value = fund.sharesPrice
+  dp.save()
+
+  fund.sharesPriceHistory.push(dp.id)
   fund.save()
 }
 
@@ -93,6 +106,16 @@ function getPriceOfToken(tokenAddress: Address): BigInt {
   let kyber = KyberNetwork.bind(KYBER_ADDR)
   let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(15))
   return result.value1
+}
+
+function kairoContract(fundAddress: Address): MiniMeToken {
+  let fund = BetokenFund.bind(fundAddress)
+  return MiniMeToken.bind(fund.controlTokenAddr())
+}
+
+function sharesContract(fundAddress: Address): MiniMeToken {
+  let fund = BetokenFund.bind(fundAddress)
+  return MiniMeToken.bind(fund.shareTokenAddr())
 }
 
 // Handlers
@@ -139,7 +162,7 @@ export function handleDeposit(event: DepositEvent): void {
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
 
-  updateTotalFunds(event.address)
+  updateTotalFunds(event.address, event)
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -152,7 +175,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
 
-  updateTotalFunds(event.address)
+  updateTotalFunds(event.address, event)
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
@@ -197,7 +220,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   entity.sellPrice = event.params._sellPrice
   entity.save()
 
-  updateTotalFunds(event.address)
+  updateTotalFunds(event.address, event)
 
   let manager = Manager.load(event.params._sender.toHex())
   manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
@@ -244,7 +267,7 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   entity.outputAmount = event.params._earnedDAIAmount
   entity.save()
 
-  updateTotalFunds(event.address)
+  updateTotalFunds(event.address, event)
 
   let manager = Manager.load(event.params._sender.toHex())
   manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
@@ -284,7 +307,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.upgradeSignal = false
   entity.save()
 
-  updateTotalFunds(event.address)
+  updateTotalFunds(event.address, event)
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {

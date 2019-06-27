@@ -106,10 +106,10 @@ type Fund @entity {
   startTimeOfCyclePhase: BigInt!
   totalFundsInDAI: BigInt!
   kairoPrice: BigInt!
-  kairoTotalSupply: BigInt! # TODO
-  sharesPrice: BigInt! # TODO
-  sharesTotalSupply: BigInt! # TODO
-  sharesPriceHistory: [DataPoint!]! # TODO
+  kairoTotalSupply: BigInt!
+  sharesPrice: BigInt!
+  sharesTotalSupply: BigInt!
+  sharesPriceHistory: [DataPoint!]!
   cycleTotalCommission: BigInt!
   managers: [Manager!]!
   # upgrade governance related
