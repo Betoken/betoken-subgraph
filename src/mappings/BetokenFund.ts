@@ -53,7 +53,7 @@ enum VoteDirection {
 
 // Constants
 
-import {PTOKENS} from '../fulcrum_tokens'
+import { PTOKENS, pTokenInfo } from '../fulcrum_tokens'
 let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
 let ZERO = BigInt.fromI32(0)
 let CALLER_REWARD = tenPow(18) // 10 ** 18 or 1 KRO
@@ -63,15 +63,14 @@ let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
 
 // Helpers
 
-function isUndefined(x: any): boolean { return x == null }
-
 function isFulcrumTokenAddress(_tokenAddress: string): boolean {
-  const result = PTOKENS.find((x) => !isUndefined(x.pTokens.find((y) => y.address === _tokenAddress)));
-  return !isUndefined(result);
+  let result = PTOKENS.findIndex((x) => x.pTokens.findIndex((y) => y.address === _tokenAddress) != -1);
+  return result != -1;
 }
 
-function assetPTokenAddressToInfo(_addr: string): object {
-  return PTOKENS.find((x) => !isUndefined(x.pTokens.find((y) => y.address === _addr))).pTokens.find((y) => y.address === _addr);
+function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
+  let pTokens = PTOKENS[PTOKENS.findIndex((x) => x.pTokens.findIndex((y) => y.address === _addr) != -1)].pTokens;
+  return pTokens[pTokens.findIndex((y) => y.address === _addr)]
 }
 
 function updateTotalFunds(fundAddress: Address, event: EthereumEvent): void {
@@ -85,7 +84,7 @@ function updateTotalFunds(fundAddress: Address, event: EthereumEvent): void {
   fund.sharesPrice = fund.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
   fund.sharesTotalSupply = shares.totalSupply()
 
-  let dp = new DataPoint(event.transaction.hash.toHex() + "-" + event.logIndex.toString())
+  let dp = new DataPoint('sharesPriceHistory-' + event.transaction.hash.toHex() + "-" + event.logIndex.toString())
   dp.timestamp = event.block.timestamp
   dp.value = fund.sharesPrice
   dp.save()
@@ -123,6 +122,36 @@ function sharesContract(fundAddress: Address): MiniMeToken {
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let entity = Fund.load("");
   let fund = BetokenFund.bind(event.address)
+
+  if (entity == null) {
+    // initialize fund entity
+    let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+    let shares = MiniMeToken.bind(fund.shareTokenAddr())
+    entity = new Fund("")
+    entity.totalFundsInDAI = fund.totalFundsInDAI()
+    entity.kairoPrice = fund.kairoPrice()
+    entity.kairoTotalSupply = kairo.totalSupply()
+    entity.sharesPrice = entity.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
+    entity.sharesTotalSupply = shares.totalSupply()
+    entity.sharesPriceHistory = new Array<string>()
+    let dp = new DataPoint('sharesPriceHistory-' + event.transaction.hash.toHex() + "-" + event.logIndex.toString())
+    dp.timestamp = event.block.timestamp
+    dp.value = entity.sharesPrice
+    dp.save()
+    entity.sharesPriceHistory.push(dp.id)
+    entity.cycleTotalCommission = fund.totalCommissionOfCycle(event.params._cycleNumber)
+    entity.managers = new Array<string>()
+    entity.hasFinalizedNextVersion = false
+    entity.upgradeVotingActive = false
+    entity.nextVersion = ""
+    entity.proposers = new Array<string>()
+    entity.candidates = new Array<string>()
+    entity.forVotes = new Array<BigInt>()
+    entity.againstVotes = new Array<BigInt>()
+    entity.upgradeSignalStrength = ZERO
+    entity.save()
+  }
+
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = CyclePhase[event.params._newPhase.toI32()]
   entity.startTimeOfCyclePhase = event.block.timestamp
@@ -180,46 +209,57 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
-  let entity: BasicOrder | FulcrumOrder
   if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
-    entity = new FulcrumOrder(id);
-    entity['isShort'] = assetPTokenAddressToInfo(event.params._tokenAddress.toHex())['type'];
+    let entity = new FulcrumOrder(id);
+    entity.isShort = assetPTokenAddressToInfo(event.params._tokenAddress.toHex()).type;
+    entity.idx = event.params._id
+    entity.cycleNumber = event.params._cycleNumber
+    entity.tokenAddress = event.params._tokenAddress.toHex()
+    entity.stake = event.params._stakeInWeis
+    entity.buyPrice = event.params._buyPrice
+    entity.sellPrice = ZERO
+    entity.buyTime = event.block.timestamp
+    entity.sellTime = ZERO
+    entity.save()
   } else {
-    entity = new BasicOrder(id);
+    let entity = new BasicOrder(id);
+    entity.idx = event.params._id
+    entity.cycleNumber = event.params._cycleNumber
+    entity.tokenAddress = event.params._tokenAddress.toHex()
+    entity.stake = event.params._stakeInWeis
+    entity.buyPrice = event.params._buyPrice
+    entity.sellPrice = ZERO
+    entity.buyTime = event.block.timestamp
+    entity.sellTime = ZERO
+    entity.save()
   }
-  entity.idx = event.params._id
-  entity.cycleNumber = event.params._cycleNumber
-  entity.tokenAddress = event.params._tokenAddress.toHex()
-  entity.stake = event.params._stakeInWeis
-  entity.buyPrice = event.params._buyPrice
-  entity.sellPrice = ZERO
-  entity.buyTime = event.block.timestamp
-  entity.sellTime = ZERO
-  entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
   if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
-    manager.fulcrumOrders.push(entity.id)
+    manager.fulcrumOrders.push(id)
   } else {
-    manager.basicOrders.push(entity.id)
+    manager.basicOrders.push(id)
   }
-  manager.kairoBalance = manager.kairoBalance.minus(entity.stake)
+  manager.kairoBalance = manager.kairoBalance.minus(event.params._stakeInWeis)
   manager.save()
 }
 
 export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
-  let entity : any
   if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
-    entity = FulcrumOrder.load(id);
+    let entity = FulcrumOrder.load(id);
+    entity.isSold = true
+    entity.sellTime = event.block.timestamp
+    entity.sellPrice = event.params._sellPrice
+    entity.save()
   } else {
-    entity = BasicOrder.load(id);
+    let entity = BasicOrder.load(id);
+    entity.isSold = true
+    entity.sellTime = event.block.timestamp
+    entity.sellPrice = event.params._sellPrice
+    entity.save()
   }
-  entity.isSold = true
-  entity.sellTime = event.block.timestamp
-  entity.sellPrice = event.params._sellPrice
-  entity.save()
-
+  
   updateTotalFunds(event.address, event)
 
   let manager = Manager.load(event.params._sender.toHex())
@@ -384,6 +424,7 @@ export function handleBlock(block: EthereumBlock): void {
   for (let m = 0; m < fund.managers.length; m++) {
     let manager = Manager.load(fund.managers[m])
     let riskTaken = ZERO
+    let totalStakeValue = ZERO
     // basic orders
     for (let o = 0; o < manager.basicOrders.length; o++) {
       let order = BasicOrder.load(manager.basicOrders[o])
@@ -391,6 +432,9 @@ export function handleBlock(block: EthereumBlock): void {
         // update price
         if (!order.isSold) {
           order.sellPrice = getPriceOfToken(Address.fromString(order.tokenAddress))
+          order.save()
+          // record stake value
+          totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
         }
         // record risk
         if (order.isSold) {
@@ -410,6 +454,9 @@ export function handleBlock(block: EthereumBlock): void {
           let pToken = PositionToken.bind(Address.fromString(order.tokenAddress))
           order.sellPrice = pToken.tokenPrice()
           order.liquidationPrice = pToken.liquidationPrice()
+          order.save()
+          // record stake value
+          totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
         }
         // record risk
         if (order.isSold) {
@@ -434,6 +481,9 @@ export function handleBlock(block: EthereumBlock): void {
         order.currBorrow = contract.getCurrentBorrowInDAI()
         order.currCash = contract.getCurrentCashInDAI()
         order.save()
+
+        // record stake value
+        totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
       }
 
       // record risk
@@ -448,5 +498,15 @@ export function handleBlock(block: EthereumBlock): void {
 
     // risk taken
     manager.riskTaken = riskTaken
+
+    // total stake value
+    manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
+    let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
+    dp.timestamp = block.timestamp
+    dp.value = manager.kairoBalanceWithStake
+    dp.save()
+    manager.kairoBalanceWithStakeHistory.push(dp.id)
+
+    manager.save()
   }
 }

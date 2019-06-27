@@ -1,10 +1,10 @@
-class pTokenInfo {
+export class pTokenInfo {
    address: string
    leverage: number
    type: boolean
 }
 
-class pToken {
+export class pToken {
    symbol: string
    pTokens: pTokenInfo[]
 }

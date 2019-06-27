@@ -12,8 +12,8 @@ enum VoteDirection {
 type Manager @entity {
   id: ID! # address
   kairoBalance: BigInt!
-  kairoBalanceWithStake: BigInt! # TODO
-  kairoBalanceWithStakeHistory: [DataPoint!]! # TODO
+  kairoBalanceWithStake: BigInt!
+  kairoBalanceWithStakeHistory: [DataPoint!]!
   baseStake: BigInt!
   riskTaken: BigInt!
   riskThreshold: BigInt!
