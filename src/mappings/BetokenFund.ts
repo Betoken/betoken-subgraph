@@ -94,9 +94,18 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   }
   entity.save()
 
-  let manager = Manager.load(event.transaction.from.toHex())
-  if (manager != null) {
-    manager.kairoBalance = manager.kairoBalance.plus(CALLER_REWARD)
+  let caller = Manager.load(event.transaction.from.toHex())
+  if (caller != null) {
+    caller.kairoBalance = caller.kairoBalance.plus(CALLER_REWARD)
+  }
+  caller.save()
+
+  for (let m = 0; m < entity.managers.length; m++) {
+    let manager = Manager.load(entity.managers[m])
+    manager.baseStake = manager.kairoBalance
+    manager.riskTaken = ZERO
+    manager.riskThreshold = manager.baseStake.times(RISK_THRESHOLD_TIME)
+    manager.save()
   }
 }
 
@@ -141,6 +150,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   entity.stake = event.params._stakeInWeis
   entity.buyPrice = event.params._buyPrice
   entity.buyTime = event.block.timestamp
+  entity.sellTime = ZERO
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
@@ -162,6 +172,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
     entity = BasicOrder.load(id);
   }
   entity.isSold = true
+  entity.sellTime = event.block.timestamp
   entity.save()
 
   updateTotalFunds(event.address)
@@ -182,6 +193,7 @@ export function handleCreatedCompoundOrder(
   entity.stake = event.params._stakeInWeis
   entity.collateralAmountInDAI = event.params._costDAIAmount
   entity.buyTime = event.block.timestamp
+  entity.sellTime = ZERO
   entity.isShort = event.params._orderType
   entity.orderAddress = event.params._order.toHex()
 
@@ -200,6 +212,7 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
   let entity = CompoundOrder.load(id)
   entity.isSold = true
+  entity.sellTime = event.block.timestamp
   entity.outputAmount = event.params._earnedDAIAmount
   entity.save()
 
@@ -319,14 +332,34 @@ export function handleBlock(block: EthereumBlock): void {
   let fund = Fund.load("")
   for (let m = 0; m < fund.managers.length; m++) {
     let manager = Manager.load(fund.managers[m])
+    let riskTaken = ZERO
     // basic orders
     for (let o = 0; o < manager.basicOrders.length; o++) {
       let order = BasicOrder.load(manager.basicOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber)) {
-
+        // record risk
+        if (order.isSold) {
+          riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+        } else {
+          riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+        }
       }
     }
-    // compound orders
+
+    // Fulcrum orders
+    for (let o = 0; o < manager.basicOrders.length; o++) {
+      let order = BasicOrder.load(manager.basicOrders[o])
+      if (order.cycleNumber.equals(fund.cycleNumber)) {
+        // record risk
+        if (order.isSold) {
+          riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+        } else {
+          riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+        }
+      }
+    }
+
+    // Compound orders
     for (let o = 0; o < manager.compoundOrders.length; o++) {
       let order = CompoundOrder.load(manager.compoundOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
@@ -341,6 +374,18 @@ export function handleBlock(block: EthereumBlock): void {
         order.currCash = contract.getCurrentCashInDAI()
         order.save()
       }
+
+      // record risk
+      if (order.cycleNumber.equals(fund.cycleNumber)) {
+        if (order.isSold) {
+          riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+        } else {
+          riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+        }
+      }
     }
+
+    // risk taken
+    manager.riskTaken = riskTaken
   }
 }

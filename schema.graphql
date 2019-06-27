@@ -15,8 +15,8 @@ type Manager @entity {
   kairoBalanceWithStake: BigInt # TODO
   kairoBalanceWithStakeHistory: [DataPoint!] # TODO
   baseStake: BigInt
-  riskTaken: BigInt # TODO
-  riskThreshold: BigInt # TODO
+  riskTaken: BigInt
+  riskThreshold: BigInt
   lastCommissionRedemption: BigInt
   basicOrders: [BasicOrder!]
   compoundOrders: [CompoundOrder!]
@@ -36,6 +36,7 @@ type BasicOrder @entity {
   buyPrice: BigInt
   sellPrice: BigInt # TODO
   buyTime: BigInt
+  sellTime: BigInt
   isSold: Boolean
 }
 
@@ -54,6 +55,7 @@ type CompoundOrder @entity {
   marketCollateralFactor: BigInt
   outputAmount: BigInt
   buyTime: BigInt
+  sellTime: BigInt
   isSold: Boolean
   isShort: Boolean
   orderAddress: String
@@ -70,6 +72,7 @@ type FulcrumOrder @entity {
   sellPrice: BigInt # TODO
   liquidationPrice: BigInt # TODO
   buyTime: BigInt
+  sellTime: BigInt
   isSold: Boolean
   isShort: Boolean
 }
