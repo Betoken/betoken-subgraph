@@ -17,10 +17,10 @@ import {
   Voted as VotedEvent,
   FinalizedNextVersion as FinalizedNextVersionEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
-  BetokenFund
+  BetokenFund,
 } from "../../generated/BetokenFund/BetokenFund"
 
-import { KyberNetwork } from "../../generated/KyberNetwork/KyberNetwork"
+import { Transfer as TransferEvent } from "../../generated/BetokenFund/templates/MiniMeToken/MiniMeToken"
 
 import {
   Manager,
@@ -37,6 +37,8 @@ import {
 import { CompoundOrderContract } from '../../generated/BetokenFund/templates/CompoundOrderContract/CompoundOrderContract'
 import { PositionToken } from '../../generated/BetokenFund/templates/PositionToken/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenFund/templates/MiniMeToken/MiniMeToken'
+import { KyberNetwork } from "../../generated/BetokenFund/templates/KyberNetwork/KyberNetwork"
+import { MiniMeToken as MiniMeTokenTemplate } from '../../generated/BetokenFund/templates'
 
 import { BigInt, Address, EthereumEvent } from '@graphprotocol/graph-ts'
 
@@ -154,6 +156,8 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     entity.againstVotes = new Array<BigInt>()
     entity.upgradeSignalStrength = ZERO
     entity.save()
+
+    MiniMeTokenTemplate.create(fund.shareTokenAddr())
   }
 
   entity.cycleNumber = event.params._cycleNumber
@@ -186,6 +190,16 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
 }
 
 export function handleDeposit(event: DepositEvent): void {
+  let investor = Investor.load(event.transaction.from.toHex())
+  if (investor == null) {
+    investor = new Investor(event.transaction.from.toHex())
+    let fund = BetokenFund.bind(event.address)
+    let shares = MiniMeToken.bind(fund.shareTokenAddr())
+    investor.sharesBalance = shares.balanceOf(Address.fromString(investor.id))
+    investor.depositWithdrawHistory = new Array<string>()
+    investor.save()
+  }
+
   let entity = new DepositWithdraw(
     event.transaction.hash.toHex() + "-" + event.logIndex.toString()
   )
@@ -195,10 +209,23 @@ export function handleDeposit(event: DepositEvent): void {
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
 
+  investor.depositWithdrawHistory.push(entity.id)
+  investor.save()
+
   updateTotalFunds(event.address, event)
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
+  let investor = Investor.load(event.transaction.from.toHex())
+  if (investor == null) {
+    investor = new Investor(event.transaction.from.toHex())
+    let fund = BetokenFund.bind(event.address)
+    let shares = MiniMeToken.bind(fund.shareTokenAddr())
+    investor.sharesBalance = shares.balanceOf(Address.fromString(investor.id))
+    investor.depositWithdrawHistory = new Array<string>()
+    investor.save()
+  }
+
   let entity = new DepositWithdraw(
     event.transaction.hash.toHex() + "-" + event.logIndex.toString()
   )
@@ -207,6 +234,9 @@ export function handleWithdraw(event: WithdrawEvent): void {
   entity.isDeposit = false
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
+
+  investor.depositWithdrawHistory.push(entity.id)
+  investor.save()
 
   updateTotalFunds(event.address, event)
 }
@@ -219,22 +249,28 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.idx = event.params._id
     entity.cycleNumber = event.params._cycleNumber
     entity.tokenAddress = event.params._tokenAddress.toHex()
+    entity.tokenAmount = event.params._tokenAmount
     entity.stake = event.params._stakeInWeis
     entity.buyPrice = event.params._buyPrice
     entity.sellPrice = ZERO
     entity.buyTime = event.block.timestamp
     entity.sellTime = ZERO
+    entity.isSold = false
+    let pToken = PositionToken.bind(event.params._tokenAddress)
+    entity.liquidationPrice = pToken.liquidationPrice()
     entity.save()
   } else {
     let entity = new BasicOrder(id);
     entity.idx = event.params._id
     entity.cycleNumber = event.params._cycleNumber
     entity.tokenAddress = event.params._tokenAddress.toHex()
+    entity.tokenAmount = event.params._tokenAmount
     entity.stake = event.params._stakeInWeis
     entity.buyPrice = event.params._buyPrice
     entity.sellPrice = ZERO
     entity.buyTime = event.block.timestamp
     entity.sellTime = ZERO
+    entity.isSold = false
     entity.save()
   }
 
@@ -344,10 +380,16 @@ export function handleRegister(event: RegisterEvent): void {
   let entity = new Manager(event.params._manager.toHex())
   entity.kairoBalance = event.params._kairoReceived
   entity.kairoBalanceWithStake = event.params._kairoReceived
+  entity.kairoBalanceWithStakeHistory = new Array<string>()
   entity.baseStake = event.params._kairoReceived
   entity.riskTaken = ZERO
   entity.riskThreshold = entity.baseStake.times(RISK_THRESHOLD_TIME)
   entity.lastCommissionRedemption = ZERO
+  entity.basicOrders = new Array<string>()
+  entity.fulcrumOrders = new Array<string>()
+  entity.compoundOrders = new Array<string>()
+  entity.commissionHistory = new Array<string>()
+  entity.votes = new Array<string>()
   entity.upgradeSignal = false
   entity.save()
 
@@ -378,11 +420,11 @@ export function handleInitiatedUpgrade(event: InitiatedUpgradeEvent): void {
 export function handleProposedCandidate(event: ProposedCandidateEvent): void {
   let entity = Fund.load("")
   let fund = BetokenFund.bind(event.address)
-  let candidates = new Array<string>(5)
-  let proposers = new Array<string>(5)
+  let candidates = new Array<string>()
+  let proposers = new Array<string>()
   for (let i = 0; i < 5; i++) {
-    candidates[i] = fund.candidates(BigInt.fromI32(i)).toHex()
-    proposers[i] = fund.proposers(BigInt.fromI32(i)).toHex()
+    candidates.push(fund.candidates(BigInt.fromI32(i)).toHex())
+    proposers.push(fund.proposers(BigInt.fromI32(i)).toHex())
   }
   entity.candidates = candidates
   entity.proposers = proposers 
@@ -392,20 +434,20 @@ export function handleProposedCandidate(event: ProposedCandidateEvent): void {
 export function handleVoted(event: VotedEvent): void {
   let entity = Fund.load("")
   let fund = BetokenFund.bind(event.address)
-  let forVotes = new Array<BigInt>(5)
-  let againstVotes = new Array<BigInt>(5)
+  let forVotes = new Array<BigInt>()
+  let againstVotes = new Array<BigInt>()
   for (let i = 0; i < 5; i++) {
-    forVotes[i] = fund.forVotes(BigInt.fromI32(i))
-    againstVotes[i] = fund.againstVotes(BigInt.fromI32(i))
+    forVotes.push(fund.forVotes(BigInt.fromI32(i)))
+    againstVotes.push(fund.againstVotes(BigInt.fromI32(i)))
   }
   entity.forVotes = forVotes
   entity.againstVotes = againstVotes
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
-  let votes = new Array<string>(5)
+  let votes = new Array<string>()
   for (let i = 0; i < 5; i++) {
-    votes[i] = VoteDirection[fund.managerVotes(fund.cycleNumber(), event.params._sender, BigInt.fromI32(i))]
+    votes.push(VoteDirection[fund.managerVotes(fund.cycleNumber(), event.params._sender, BigInt.fromI32(i))])
   }
   manager.votes = votes
 }
@@ -419,98 +461,121 @@ export function handleFinalizedNextVersion(
   entity.save()
 }
 
+// token transfer handler
+
+export function handleTokenTransfer(event: TransferEvent): void {
+  let contract = MiniMeToken.bind(event.address)
+  if (contract.symbol() === "BTKS") {
+    let to = event.params._to
+    let investor = Investor.load(to.toHex())
+    if (investor == null) {
+      // create new investor entity
+      investor = new Investor(to.toHex())
+      investor.depositWithdrawHistory = new Array<string>()
+    }
+    // update balances
+    let from = Investor.load(event.params._from.toHex())
+    from.sharesBalance = contract.balanceOf(event.params._from)
+    from.save()
+    investor.sharesBalance = contract.balanceOf(to)
+    investor.save()
+  }
+}
+
 // block handler
 
 import { EthereumBlock } from '@graphprotocol/graph-ts'
 
 export function handleBlock(block: EthereumBlock): void {
   let fund = Fund.load("")
-  for (let m = 0; m < fund.managers.length; m++) {
-    let manager = Manager.load(getArrItem<string>(fund.managers, m))
-    let riskTaken = ZERO
-    let totalStakeValue = ZERO
-    // basic orders
-    for (let o = 0; o < manager.basicOrders.length; o++) {
-      let order = BasicOrder.load(getArrItem<string>(manager.basicOrders, o))
-      if (order.cycleNumber.equals(fund.cycleNumber)) {
-        // update price
-        if (!order.isSold) {
-          order.sellPrice = getPriceOfToken(Address.fromString(order.tokenAddress))
+  if (fund != null) {
+    for (let m = 0; m < fund.managers.length; m++) {
+      let manager = Manager.load(getArrItem<string>(fund.managers, m))
+      let riskTaken = ZERO
+      let totalStakeValue = ZERO
+      // basic orders
+      for (let o = 0; o < manager.basicOrders.length; o++) {
+        let order = BasicOrder.load(getArrItem<string>(manager.basicOrders, o))
+        if (order.cycleNumber.equals(fund.cycleNumber)) {
+          // update price
+          if (!order.isSold) {
+            order.sellPrice = getPriceOfToken(Address.fromString(order.tokenAddress))
+            order.save()
+            // record stake value
+            totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+          }
+          // record risk
+          if (order.isSold) {
+            riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+          } else {
+            riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+          }
+        }
+      }
+
+      // Fulcrum orders
+      for (let o = 0; o < manager.fulcrumOrders.length; o++) {
+        let order = FulcrumOrder.load(getArrItem<string>(manager.fulcrumOrders, o))
+        if (order.cycleNumber.equals(fund.cycleNumber)) {
+          // update price
+          if (!order.isSold) {
+            let pToken = PositionToken.bind(Address.fromString(order.tokenAddress))
+            order.sellPrice = pToken.tokenPrice()
+            order.liquidationPrice = pToken.liquidationPrice()
+            order.save()
+            // record stake value
+            totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+          }
+          // record risk
+          if (order.isSold) {
+            riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+          } else {
+            riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+          }
+        }
+      }
+
+      // Compound orders
+      for (let o = 0; o < manager.compoundOrders.length; o++) {
+        let order = CompoundOrder.load(getArrItem<string>(manager.compoundOrders, o))
+        if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
+          let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
+          order.collateralRatio = contract.getCurrentCollateralRatioInDAI()
+
+          let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
+          order.currProfit = currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1))
+
+          order.currCollateral = contract.getCurrentCollateralInDAI()
+          order.currBorrow = contract.getCurrentBorrowInDAI()
+          order.currCash = contract.getCurrentCashInDAI()
           order.save()
+
           // record stake value
-          totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+          totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
         }
+
         // record risk
-        if (order.isSold) {
-          riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
-        } else {
-          riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+        if (order.cycleNumber.equals(fund.cycleNumber)) {
+          if (order.isSold) {
+            riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+          } else {
+            riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+          }
         }
       }
+
+      // risk taken
+      manager.riskTaken = riskTaken
+
+      // total stake value
+      manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
+      let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
+      dp.timestamp = block.timestamp
+      dp.value = manager.kairoBalanceWithStake
+      dp.save()
+      manager.kairoBalanceWithStakeHistory.push(dp.id)
+
+      manager.save()
     }
-
-    // Fulcrum orders
-    for (let o = 0; o < manager.fulcrumOrders.length; o++) {
-      let order = FulcrumOrder.load(getArrItem<string>(manager.fulcrumOrders, o))
-      if (order.cycleNumber.equals(fund.cycleNumber)) {
-        // update price
-        if (!order.isSold) {
-          let pToken = PositionToken.bind(Address.fromString(order.tokenAddress))
-          order.sellPrice = pToken.tokenPrice()
-          order.liquidationPrice = pToken.liquidationPrice()
-          order.save()
-          // record stake value
-          totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
-        }
-        // record risk
-        if (order.isSold) {
-          riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
-        } else {
-          riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
-        }
-      }
-    }
-
-    // Compound orders
-    for (let o = 0; o < manager.compoundOrders.length; o++) {
-      let order = CompoundOrder.load(getArrItem<string>(manager.compoundOrders, o))
-      if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
-        let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
-        order.collateralRatio = contract.getCurrentCollateralRatioInDAI()
-
-        let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
-        order.currProfit = currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1))
-
-        order.currCollateral = contract.getCurrentCollateralInDAI()
-        order.currBorrow = contract.getCurrentBorrowInDAI()
-        order.currCash = contract.getCurrentCashInDAI()
-        order.save()
-
-        // record stake value
-        totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
-      }
-
-      // record risk
-      if (order.cycleNumber.equals(fund.cycleNumber)) {
-        if (order.isSold) {
-          riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
-        } else {
-          riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
-        }
-      }
-    }
-
-    // risk taken
-    manager.riskTaken = riskTaken
-
-    // total stake value
-    manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
-    let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
-    dp.timestamp = block.timestamp
-    dp.value = manager.kairoBalanceWithStake
-    dp.save()
-    manager.kairoBalanceWithStakeHistory.push(dp.id)
-
-    manager.save()
   }
 }

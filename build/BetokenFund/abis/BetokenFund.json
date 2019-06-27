@@ -1245,6 +1245,11 @@
         "indexed": false,
         "name": "_costDAIAmount",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_tokenAmount",
+        "type": "uint256"
       }
     ],
     "name": "CreatedInvestment",
