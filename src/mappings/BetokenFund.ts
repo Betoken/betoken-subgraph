@@ -40,18 +40,16 @@ import { MiniMeToken } from '../../generated/BetokenFund/templates/MiniMeToken/M
 
 import { BigInt, Address, EthereumEvent } from '@graphprotocol/graph-ts'
 
-enum CyclePhase {
-  INTERMISSION,
-  MANAGE
-}
-
-enum VoteDirection {
-  EMPTY,
-  FOR,
-  AGAINST
-}
-
 // Constants
+
+let CyclePhase = new Array<string>()
+CyclePhase.push('INTERMISSION')
+CyclePhase.push('MANAGE')
+
+let VoteDirection = new Array<string>()
+VoteDirection.push('EMPTY')
+VoteDirection.push('FOR')
+VoteDirection.push('AGAINST')
 
 import { PTOKENS, pTokenInfo } from '../fulcrum_tokens'
 let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
@@ -117,6 +115,12 @@ function sharesContract(fundAddress: Address): MiniMeToken {
   return MiniMeToken.bind(fund.shareTokenAddr())
 }
 
+function getArrItem<T>(arr: Array<T>, idx: i32): T {
+  let a = new Array<T>()
+  a = a.concat(arr)
+  return a[idx]
+}
+
 // Handlers
 
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
@@ -172,8 +176,8 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   }
   caller.save()
 
-  for (let m = 0; m < entity.managers.length; m++) {
-    let manager = Manager.load(entity.managers[m])
+  for (let m: i32 = 0; m < entity.managers.length; m++) {
+    let manager = Manager.load(getArrItem<string>(entity.managers, m))
     manager.baseStake = manager.kairoBalance
     manager.riskTaken = ZERO
     manager.riskThreshold = manager.baseStake.times(RISK_THRESHOLD_TIME)
@@ -422,12 +426,12 @@ import { EthereumBlock } from '@graphprotocol/graph-ts'
 export function handleBlock(block: EthereumBlock): void {
   let fund = Fund.load("")
   for (let m = 0; m < fund.managers.length; m++) {
-    let manager = Manager.load(fund.managers[m])
+    let manager = Manager.load(getArrItem<string>(fund.managers, m))
     let riskTaken = ZERO
     let totalStakeValue = ZERO
     // basic orders
     for (let o = 0; o < manager.basicOrders.length; o++) {
-      let order = BasicOrder.load(manager.basicOrders[o])
+      let order = BasicOrder.load(getArrItem<string>(manager.basicOrders, o))
       if (order.cycleNumber.equals(fund.cycleNumber)) {
         // update price
         if (!order.isSold) {
@@ -446,8 +450,8 @@ export function handleBlock(block: EthereumBlock): void {
     }
 
     // Fulcrum orders
-    for (let o = 0; o < manager.basicOrders.length; o++) {
-      let order = FulcrumOrder.load(manager.basicOrders[o])
+    for (let o = 0; o < manager.fulcrumOrders.length; o++) {
+      let order = FulcrumOrder.load(getArrItem<string>(manager.fulcrumOrders, o))
       if (order.cycleNumber.equals(fund.cycleNumber)) {
         // update price
         if (!order.isSold) {
@@ -469,7 +473,7 @@ export function handleBlock(block: EthereumBlock): void {
 
     // Compound orders
     for (let o = 0; o < manager.compoundOrders.length; o++) {
-      let order = CompoundOrder.load(manager.compoundOrders[o])
+      let order = CompoundOrder.load(getArrItem<string>(manager.compoundOrders, o))
       if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
         let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
         order.collateralRatio = contract.getCurrentCollateralRatioInDAI()

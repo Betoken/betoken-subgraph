@@ -1,0 +1,130 @@
+enum CyclePhase {
+  INTERMISSION
+  MANAGE
+}
+
+enum VoteDirection {
+  EMPTY
+  FOR
+  AGAINST
+}
+
+type Manager @entity {
+  id: ID! # address
+  kairoBalance: BigInt!
+  kairoBalanceWithStake: BigInt!
+  kairoBalanceWithStakeHistory: [DataPoint!]!
+  baseStake: BigInt!
+  riskTaken: BigInt!
+  riskThreshold: BigInt!
+  lastCommissionRedemption: BigInt!
+  basicOrders: [BasicOrder!]!
+  compoundOrders: [CompoundOrder!]!
+  fulcrumOrders: [FulcrumOrder!]!
+  commissionHistory: [CommissionRedemption!]!
+  upgradeSignal: Boolean!
+  votes: [VoteDirection!]!
+}
+
+type BasicOrder @entity {
+  id: ID! # index in userInvestments[user] array + cycleNumber
+  idx: BigInt!
+  tokenAddress: String!
+  cycleNumber: BigInt!
+  stake: BigInt!
+  tokenAmount: BigInt!
+  buyPrice: BigInt!
+  sellPrice: BigInt!
+  buyTime: BigInt!
+  sellTime: BigInt!
+  isSold: Boolean!
+}
+
+type CompoundOrder @entity {
+  id: ID! # index in userCompoundOrders[user] array + cycleNumber
+  idx: BigInt!
+  tokenAddress: String!
+  cycleNumber: BigInt!
+  stake: BigInt!
+  collateralAmountInDAI: BigInt!
+  collateralRatio: BigInt!
+  currProfit: BigInt!
+  currCollateral: BigInt!
+  currBorrow: BigInt!
+  currCash: BigInt!
+  marketCollateralFactor: BigInt!
+  outputAmount: BigInt!
+  buyTime: BigInt!
+  sellTime: BigInt!
+  isSold: Boolean!
+  isShort: Boolean!
+  orderAddress: String!
+}
+
+type FulcrumOrder @entity {
+  id: ID! # index in userInvestments[user] array + cycleNumber
+  idx: BigInt!
+  tokenAddress: String!
+  cycleNumber: BigInt!
+  stake: BigInt!
+  tokenAmount: BigInt!
+  buyPrice: BigInt!
+  sellPrice: BigInt! # unit is underlyingToken/pToken
+  liquidationPrice: BigInt! # unit is underlyingToken/pToken
+  buyTime: BigInt!
+  sellTime: BigInt!
+  isSold: Boolean!
+  isShort: Boolean!
+}
+
+type CommissionRedemption @entity {
+  id: ID! # tx hash
+  timestamp: BigInt!
+  cycleNumber: BigInt!
+  amountInDAI: BigInt!
+  txHash: String!
+}
+
+type Investor @entity {
+  id: ID! # address
+  sharesBalance: BigInt!
+  depositWithdrawHistory: [DepositWithdraw!]!
+}
+
+type DepositWithdraw @entity {
+  id: ID! # tx hash
+  timestamp: BigInt!
+  isDeposit: Boolean!
+  amountInDAI: BigInt!
+  txHash: String!
+}
+
+type Fund @entity {
+  id: ID! # always empty string
+  cycleNumber: BigInt!
+  cyclePhase: CyclePhase!
+  startTimeOfCyclePhase: BigInt!
+  totalFundsInDAI: BigInt!
+  kairoPrice: BigInt!
+  kairoTotalSupply: BigInt!
+  sharesPrice: BigInt!
+  sharesTotalSupply: BigInt!
+  sharesPriceHistory: [DataPoint!]!
+  cycleTotalCommission: BigInt!
+  managers: [Manager!]!
+  # upgrade governance related
+  hasFinalizedNextVersion: Boolean!
+  upgradeVotingActive: Boolean!
+  nextVersion: String!
+  proposers: [String!]!
+  candidates: [String!]!
+  forVotes: [BigInt!]!
+  againstVotes: [BigInt!]!
+  upgradeSignalStrength: BigInt!
+}
+
+type DataPoint @entity {
+  id: ID! # timestamp
+  timestamp: BigInt!
+  value: BigInt!
+}
