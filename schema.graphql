@@ -34,7 +34,7 @@ type BasicOrder @entity {
   stake: BigInt!
   tokenAmount: BigInt!
   buyPrice: BigInt!
-  sellPrice: BigInt! # TODO
+  sellPrice: BigInt!
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!

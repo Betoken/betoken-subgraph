@@ -73,7 +73,25 @@ dataSources:
           language: wasm/assemblyscript
           entities:
             - CompoundOrder
-          file: ./src/mappings/CompoundOrderContract.ts
+          file: ./src/mappings/BetokenFund.ts
           abis:
             - name: CompoundOrderContract
               file: ./abis/CompoundOrder.json
+  - kind: ethereum/contract
+    name: KyberNetwork
+    network: mainnet
+    source:
+      address: "0x818E6FECD516Ecc3849DAf6845e3EC868087B755"
+      abi: KyberNetwork
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      entities:
+        - Fund
+      file: ./src/mappings/KyberNetwork.ts
+      abis:
+        - name: KyberNetwork
+          file: ./abis/KyberNetwork.json
+      blockHandlers:
+        - handler: handleBlock

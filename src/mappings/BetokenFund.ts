@@ -20,6 +20,8 @@ import {
   BetokenFund
 } from "../../generated/BetokenFund/BetokenFund"
 
+import { KyberNetwork } from "../../generated/KyberNetwork/KyberNetwork"
+
 import {
   Manager,
   BasicOrder,
@@ -52,7 +54,9 @@ enum VoteDirection {
 import {PTOKENS} from '../fulcrum_tokens'
 let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
 let ZERO = BigInt.fromI32(0)
-let CALLER_REWARD = BigInt.fromI32(1e18)
+let CALLER_REWARD = tenPow(18) // 10 ** 18 or 1 KRO
+let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
+let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
 
 // Helpers
 
@@ -73,6 +77,20 @@ function updateTotalFunds(fundAddress: Address): void {
   fund.totalFundsInDAI = contract.totalFundsInDAI()
   fund.kairoPrice = contract.kairoPrice()
   fund.save()
+}
+
+function tenPow(exponent: number): BigInt {
+  let result = BigInt.fromI32(1)
+  for (let i = 0; i < exponent; i++) {
+    result = result.times(BigInt.fromI32(10))
+  }
+  return result
+}
+
+function getPriceOfToken(tokenAddress: Address): BigInt {
+  let kyber = KyberNetwork.bind(KYBER_ADDR)
+  let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(15))
+  return result.value1
 }
 
 // Handlers
@@ -174,6 +192,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   }
   entity.isSold = true
   entity.sellTime = event.block.timestamp
+  entity.sellPrice = event.params._sellPrice
   entity.save()
 
   updateTotalFunds(event.address)
@@ -344,6 +363,9 @@ export function handleBlock(block: EthereumBlock): void {
     for (let o = 0; o < manager.basicOrders.length; o++) {
       let order = BasicOrder.load(manager.basicOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber)) {
+        if (!order.isSold) {
+          order.sellPrice = getPriceOfToken(Address.fromString(order.tokenAddress))
+        }
         // record risk
         if (order.isSold) {
           riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
