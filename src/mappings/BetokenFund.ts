@@ -149,6 +149,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   entity.tokenAddress = event.params._tokenAddress.toHex()
   entity.stake = event.params._stakeInWeis
   entity.buyPrice = event.params._buyPrice
+  entity.sellPrice = ZERO
   entity.buyTime = event.block.timestamp
   entity.sellTime = ZERO
   entity.save()
@@ -196,10 +197,16 @@ export function handleCreatedCompoundOrder(
   entity.sellTime = ZERO
   entity.isShort = event.params._orderType
   entity.orderAddress = event.params._order.toHex()
+  entity.outputAmount = ZERO
 
   let contract = CompoundOrderContract.bind(event.params._order)
   entity.marketCollateralFactor = contract.getMarketCollateralFactor()
-
+  entity.collateralRatio = contract.getCurrentCollateralRatioInDAI()
+  let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
+  entity.currProfit = currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1))
+  entity.currCollateral = contract.getCurrentCollateralInDAI()
+  entity.currBorrow = contract.getCurrentBorrowInDAI()
+  entity.currCash = contract.getCurrentCashInDAI()
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
