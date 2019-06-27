@@ -1,4 +1,15 @@
-[  
+class pTokenInfo {
+   address: string
+   leverage: number
+   type: boolean
+}
+
+class pToken {
+   symbol: string
+   pTokens: pTokenInfo[]
+}
+
+export let PTOKENS: Array<pToken> = [  
   {  
      "symbol":"ETH",
      "pTokens":[  

@@ -49,22 +49,30 @@ enum VoteDirection {
 
 // Constants
 
-const PTOKENS = require('./fulcrum_tokens.json');
-const RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
-const ZERO = BigInt.fromI32(0)
-const PRECISION = BigInt.fromI32(1e18)
+import {PTOKENS} from '../fulcrum_tokens'
+let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
+let ZERO = BigInt.fromI32(0)
+let CALLER_REWARD = BigInt.fromI32(1e18)
 
 // Helpers
 
-export const isUndefined = (x) => x == null;
+function isUndefined(x: any): boolean { return x == null }
 
-export const isFulcrumTokenAddress = (_tokenAddress) => {
+function isFulcrumTokenAddress(_tokenAddress: string): boolean {
   const result = PTOKENS.find((x) => !isUndefined(x.pTokens.find((y) => y.address === _tokenAddress)));
   return !isUndefined(result);
 }
 
-export const assetPTokenAddressToInfo = (_addr) => {
+function assetPTokenAddressToInfo(_addr: string): object {
   return PTOKENS.find((x) => !isUndefined(x.pTokens.find((y) => y.address === _addr))).pTokens.find((y) => y.address === _addr);
+}
+
+function updateTotalFunds(fundAddress: Address): void {
+  let fund = Fund.load("")
+  let contract = BetokenFund.bind(fundAddress)
+  fund.totalFundsInDAI = contract.totalFundsInDAI()
+  fund.kairoPrice = contract.kairoPrice()
+  fund.save()
 }
 
 // Handlers
@@ -74,6 +82,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let fund = BetokenFund.bind(event.address)
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = CyclePhase[event.params._newPhase.toI32()]
+  entity.startTimeOfCyclePhase = event.block.timestamp
   if (!fund.hasFinalizedNextVersion()) {
     entity.candidates.length = 0
     entity.proposers.length = 0
@@ -84,6 +93,11 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     entity.nextVersion = ""
   }
   entity.save()
+
+  let manager = Manager.load(event.transaction.from.toHex())
+  if (manager != null) {
+    manager.kairoBalance = manager.kairoBalance.plus(CALLER_REWARD)
+  }
 }
 
 export function handleDeposit(event: DepositEvent): void {
@@ -95,6 +109,8 @@ export function handleDeposit(event: DepositEvent): void {
   entity.isDeposit = true
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
+
+  updateTotalFunds(event.address)
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -106,44 +122,53 @@ export function handleWithdraw(event: WithdrawEvent): void {
   entity.isDeposit = false
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
+
+  updateTotalFunds(event.address)
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
-  let entity;
-  if (isFulcrumTokenAddress(event.params._tokenAddress)) {
+  let entity: BasicOrder | FulcrumOrder
+  if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     entity = new FulcrumOrder(id);
-    entity.isShort = assetPTokenAddressToInfo(event.params._tokenAddress).type;
+    entity['isShort'] = assetPTokenAddressToInfo(event.params._tokenAddress.toHex())['type'];
   } else {
     entity = new BasicOrder(id);
   }
   entity.idx = event.params._id
   entity.cycleNumber = event.params._cycleNumber
-  entity.tokenAddress = event.params._tokenAddress
+  entity.tokenAddress = event.params._tokenAddress.toHex()
   entity.stake = event.params._stakeInWeis
   entity.buyPrice = event.params._buyPrice
   entity.buyTime = event.block.timestamp
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
-  if (isFulcrumTokenAddress(event.params._tokenAddress)) {
+  if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     manager.fulcrumOrders.push(entity.id)
   } else {
     manager.basicOrders.push(entity.id)
   }
+  manager.kairoBalance = manager.kairoBalance.minus(entity.stake)
   manager.save()
 }
 
 export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
-  let entity;
-  if (isFulcrumTokenAddress(event.params._tokenAddress)) {
+  let entity : any
+  if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     entity = FulcrumOrder.load(id);
   } else {
     entity = BasicOrder.load(id);
   }
   entity.isSold = true
   entity.save()
+
+  updateTotalFunds(event.address)
+
+  let manager = Manager.load(event.params._sender.toHex())
+  manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
+  manager.save()
 }
 
 export function handleCreatedCompoundOrder(
@@ -161,12 +186,13 @@ export function handleCreatedCompoundOrder(
   entity.orderAddress = event.params._order.toHex()
 
   let contract = CompoundOrderContract.bind(event.params._order)
-  entity.minCollateralRatio = PRECISION.div(contract.getMarketCollateralFactor())
+  entity.marketCollateralFactor = contract.getMarketCollateralFactor()
 
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
   manager.compoundOrders.push(entity.id)
+  manager.kairoBalance = manager.kairoBalance.minus(entity.stake)
   manager.save()
 }
 
@@ -176,6 +202,12 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   entity.isSold = true
   entity.outputAmount = event.params._earnedDAIAmount
   entity.save()
+
+  updateTotalFunds(event.address)
+
+  let manager = Manager.load(event.params._sender.toHex())
+  manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
+  manager.save()
 }
 
 export function handleCommissionPaid(event: CommissionPaidEvent): void {
@@ -194,6 +226,12 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
   manager.save()
 }
 
+export function handleTotalCommissionPaid(event: TotalCommissionPaidEvent): void {
+  let entity = Fund.load("")
+  entity.cycleTotalCommission = event.params._totalCommissionInDAI
+  entity.save()
+}
+
 export function handleRegister(event: RegisterEvent): void {
   let entity = new Manager(event.params._manager.toHex())
   entity.kairoBalance = event.params._kairoReceived
@@ -205,9 +243,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.upgradeSignal = false
   entity.save()
 
-  let fund = Fund.load("")
-  fund.managers.push(entity.id)
-  fund.save()
+  updateTotalFunds(event.address)
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
@@ -281,20 +317,20 @@ import { EthereumBlock } from '@graphprotocol/graph-ts'
 
 export function handleBlock(block: EthereumBlock): void {
   let fund = Fund.load("")
-  for (let m of fund.managers) {
-    let manager = Manager.load(m)
+  for (let m = 0; m < fund.managers.length; m++) {
+    let manager = Manager.load(fund.managers[m])
     // basic orders
-    for (let o of manager.basicOrders) {
-      let order = BasicOrder.load(o)
+    for (let o = 0; o < manager.basicOrders.length; o++) {
+      let order = BasicOrder.load(manager.basicOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber)) {
 
       }
     }
     // compound orders
-    for (let o of manager.compoundOrders) {
-      let order = CompoundOrder.load(o)
+    for (let o = 0; o < manager.compoundOrders.length; o++) {
+      let order = CompoundOrder.load(manager.compoundOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
-        let contract = CompoundOrderContract.bind(Address.fromHexString(order.orderAddress))
+        let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
         order.collateralRatio = contract.getCurrentCollateralRatioInDAI()
 
         let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value

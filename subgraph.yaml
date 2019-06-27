@@ -44,6 +44,8 @@ dataSources:
           handler: handleSoldCompoundOrder
         - event: CommissionPaid(indexed uint256,indexed address,uint256)
           handler: handleCommissionPaid
+        - event: TotalCommissionPaid(indexed uint256,uint256)
+          handler: handleTotalCommissionPaid
         - event: Register(indexed address,uint256,uint256)
           handler: handleRegister
         - event: SignaledUpgrade(indexed uint256,indexed address,indexed bool)

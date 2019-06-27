@@ -11,7 +11,7 @@ enum VoteDirection {
 
 type Manager @entity {
   id: ID! # address
-  kairoBalance: BigInt #TODO
+  kairoBalance: BigInt
   kairoBalanceWithStake: BigInt # TODO
   kairoBalanceWithStakeHistory: [DataPoint!] # TODO
   baseStake: BigInt
@@ -51,7 +51,7 @@ type CompoundOrder @entity {
   currCollateral: BigInt
   currBorrow: BigInt
   currCash: BigInt
-  minCollateralRatio: BigInt
+  marketCollateralFactor: BigInt
   outputAmount: BigInt
   buyTime: BigInt
   isSold: Boolean
@@ -100,14 +100,14 @@ type Fund @entity {
   id: ID! # always empty string
   cycleNumber: BigInt
   cyclePhase: CyclePhase
-  startTimeOfCyclePhase: BigInt # TODO
-  totalFundsInDAI: BigInt # TODO
-  kairoPrice: BigInt # TODO
+  startTimeOfCyclePhase: BigInt
+  totalFundsInDAI: BigInt
+  kairoPrice: BigInt
   kairoTotalSupply: BigInt # TODO
   sharesPrice: BigInt # TODO
   sharesTotalSupply: BigInt # TODO
   sharesPriceHistory: [DataPoint!] # TODO
-  cycleTotalCommission: BigInt # TODO
+  cycleTotalCommission: BigInt
   managers: [Manager!]
   # upgrade governance related
   hasFinalizedNextVersion: Boolean
