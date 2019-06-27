@@ -35,6 +35,8 @@ import {
 } from "../../generated/schema"
 
 import { CompoundOrderContract } from '../../generated/BetokenFund/templates/CompoundOrderContract/CompoundOrderContract'
+import { PositionToken } from '../../generated/BetokenFund/templates/PositionToken/PositionToken'
+import { MiniMeToken } from '../../generated/BetokenFund/templates/MiniMeToken/MiniMeToken'
 
 import { BigInt, Address } from '@graphprotocol/graph-ts'
 
@@ -363,6 +365,7 @@ export function handleBlock(block: EthereumBlock): void {
     for (let o = 0; o < manager.basicOrders.length; o++) {
       let order = BasicOrder.load(manager.basicOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber)) {
+        // update price
         if (!order.isSold) {
           order.sellPrice = getPriceOfToken(Address.fromString(order.tokenAddress))
         }
@@ -377,8 +380,14 @@ export function handleBlock(block: EthereumBlock): void {
 
     // Fulcrum orders
     for (let o = 0; o < manager.basicOrders.length; o++) {
-      let order = BasicOrder.load(manager.basicOrders[o])
+      let order = FulcrumOrder.load(manager.basicOrders[o])
       if (order.cycleNumber.equals(fund.cycleNumber)) {
+        // update price
+        if (!order.isSold) {
+          let pToken = PositionToken.bind(Address.fromString(order.tokenAddress))
+          order.sellPrice = pToken.tokenPrice()
+          order.liquidationPrice = pToken.liquidationPrice()
+        }
         // record risk
         if (order.isSold) {
           riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))

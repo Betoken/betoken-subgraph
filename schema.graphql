@@ -69,8 +69,8 @@ type FulcrumOrder @entity {
   stake: BigInt!
   tokenAmount: BigInt!
   buyPrice: BigInt!
-  sellPrice: BigInt! # TODO
-  liquidationPrice: BigInt! # TODO
+  sellPrice: BigInt! # unit is underlyingToken/pToken
+  liquidationPrice: BigInt! # unit is underlyingToken/pToken
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!

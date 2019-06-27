@@ -1,0 +1,120 @@
+[
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "name": "depositTokenAddress",
+        "type": "address"
+      },
+      {
+        "name": "depositAmount",
+        "type": "uint256"
+      },
+      {
+        "name": "maxPriceAllowed",
+        "type": "uint256"
+      }
+    ],
+    "name": "mintWithToken",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "name": "burnTokenAddress",
+        "type": "address"
+      },
+      {
+        "name": "burnAmount",
+        "type": "uint256"
+      },
+      {
+        "name": "minPriceAllowed",
+        "type": "uint256"
+      }
+    ],
+    "name": "burnToToken",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "tokenPrice",
+    "outputs": [
+      {
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "liquidationPrice",
+    "outputs": [
+      {
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "currentLeverage",
+    "outputs": [
+      {
+        "name": "leverage",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [
+      {
+        "name": "decimals",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

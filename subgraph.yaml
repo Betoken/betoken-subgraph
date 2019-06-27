@@ -72,11 +72,41 @@ dataSources:
           apiVersion: 0.0.3
           language: wasm/assemblyscript
           entities:
-            - CompoundOrder
+            - Fund
           file: ./src/mappings/BetokenFund.ts
           abis:
             - name: CompoundOrderContract
               file: ./abis/CompoundOrder.json
+      - name: PositionToken
+        kind: ethereum/contract
+        network: mainnet
+        source:
+          abi: PositionToken
+        mapping:
+          kind: ethereum/events
+          apiVersion: 0.0.3
+          language: wasm/assemblyscript
+          entities:
+            - Fund
+          file: ./src/mappings/BetokenFund.ts
+          abis:
+            - name: PositionToken
+              file: ./abis/PositionToken.json
+      - name: MiniMeToken
+        kind: ethereum/contract
+        network: mainnet
+        source:
+          abi: MiniMeToken
+        mapping:
+          kind: ethereum/events
+          apiVersion: 0.0.3
+          language: wasm/assemblyscript
+          entities:
+            - Fund
+          file: ./src/mappings/BetokenFund.ts
+          abis:
+            - name: MiniMeToken
+              file: ./abis/MiniMeToken.json
   - kind: ethereum/contract
     name: KyberNetwork
     network: mainnet
