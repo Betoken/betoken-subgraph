@@ -32,7 +32,7 @@ import {
   DataPoint
 } from "../../generated/schema"
 
-import { CompoundOrderContract } from '../../generated/BetokenProxy/templates/CompoundOrderContract/CompoundOrderContract'
+import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/CompoundOrder/CompoundOrder'
 import { PositionToken } from '../../generated/BetokenProxy/templates/PositionToken/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
 

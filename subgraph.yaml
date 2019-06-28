@@ -13,7 +13,12 @@ dataSources:
       apiVersion: 0.0.3
       language: wasm/assemblyscript
       entities:
+        - Manager
+        - BasicOrder
+        - CompoundOrder
+        - FulcrumOrder
         - Fund
+        - DataPoint
       abis:
         - name: BetokenProxy
           file: ./abis/BetokenProxy.json
@@ -26,11 +31,11 @@ dataSources:
           handler: handleUpdatedFundAddress
       file: ./src/mappings/BetokenProxy.ts
     templates:
-      - name: CompoundOrderContract
+      - name: CompoundOrder
         kind: ethereum/contract
         network: mainnet
         source:
-          abi: CompoundOrderContract
+          abi: CompoundOrder
         mapping:
           kind: ethereum/events
           apiVersion: 0.0.3
@@ -39,7 +44,7 @@ dataSources:
             - Fund
           file: ./src/mappings/BetokenFund.ts
           abis:
-            - name: CompoundOrderContract
+            - name: CompoundOrder
               file: ./abis/CompoundOrder.json
       - name: PositionToken
         kind: ethereum/contract
@@ -74,8 +79,8 @@ dataSources:
           eventHandlers:
             - event: Transfer(indexed address,indexed address,uint256)
               handler: handleTokenTransfer
-      - kind: ethereum/contract
-        name: KyberNetwork
+      - name: KyberNetwork
+        kind: ethereum/contract
         network: mainnet
         source:
           abi: KyberNetwork
@@ -89,8 +94,8 @@ dataSources:
           abis:
             - name: KyberNetwork
               file: ./abis/KyberNetwork.json
-      - kind: ethereum/contract
-        name: BetokenFund
+      - name: BetokenFund
+        kind: ethereum/contract
         network: mainnet
         source:
           abi: BetokenFund
@@ -106,11 +111,12 @@ dataSources:
             - CommissionRedemption
             - Investor
             - DepositWithdraw
-            - BetokenFund
+            - Fund
             - DataPoint
           abis:
             - name: BetokenFund
               file: ./abis/BetokenFund.json
+          file: ./src/mappings/BetokenFund.ts
           eventHandlers:
             - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
               handler: handleChangedPhase
@@ -143,6 +149,4 @@ dataSources:
             - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
               handler: handleVoted
             - event: FinalizedNextVersion(indexed uint256,address)
-              handler: handleFinalizedNextVersion
-          file: ./src/mappings/BetokenFund.ts
-    
+              handler: handleFinalizedNextVersion    
