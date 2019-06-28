@@ -17,6 +17,7 @@ import {
   Voted as VotedEvent,
   FinalizedNextVersion as FinalizedNextVersionEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
+  FundCreated as FundCreatedEvent,
   BetokenFund,
 } from "../../generated/BetokenFund/BetokenFund"
 
@@ -453,9 +454,9 @@ export function handleTokenTransfer(event: TransferEvent): void {
   }
 }
 
-// init fund call handler
+// init fund handler
 
-export function initFund(): void {
+export function initFund(event: FundCreatedEvent): void {
   // initialize fund entity
   let fund = BetokenFund.bind(BETOKEN_ADDR)
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())

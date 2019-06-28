@@ -1109,6 +1109,12 @@
   },
   {
     "anonymous": false,
+    "inputs": [],
+    "name": "FundCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [
       {
         "indexed": true,

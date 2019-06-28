@@ -27,10 +27,11 @@ dataSources:
           file: ./abis/BetokenFund.json
       blockHandlers:
         - handler: handleBlock
-      callHandlers:
-        - function: setProxy(address)
-          handler: initFund
+          filter:
+            kind: call
       eventHandlers:
+        - event: FundCreated()
+          handler: initFund
         - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
           handler: handleChangedPhase
         - event: Deposit(indexed uint256,indexed address,address,uint256,uint256,uint256)
