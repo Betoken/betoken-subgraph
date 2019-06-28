@@ -69,8 +69,9 @@ function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
   return pTokens[pTokens.findIndex((y) => y.address === _addr)]
 }
 
-function updateTotalFunds(fundAddress: Address, event: EthereumEvent): void {
+function updateTotalFunds(event: EthereumEvent): void {
   let fund = Fund.load(FUND_ID)
+  let fundAddress = Address.fromString(fund.address)
   let fundContract = BetokenFund.bind(fundAddress)
   let kairo = kairoContract(fundAddress)
   let shares = sharesContract(fundAddress)
@@ -171,7 +172,7 @@ export function handleDeposit(event: DepositEvent): void {
   investor.depositWithdrawHistory.push(entity.id)
   investor.save()
 
-  updateTotalFunds(event.address, event)
+  updateTotalFunds(event)
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -197,7 +198,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   investor.depositWithdrawHistory.push(entity.id)
   investor.save()
 
-  updateTotalFunds(event.address, event)
+  updateTotalFunds(event)
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
@@ -259,7 +260,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
     entity.save()
   }
   
-  updateTotalFunds(event.address, event)
+  updateTotalFunds(event)
 
   let manager = Manager.load(event.params._sender.toHex())
   manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
@@ -306,7 +307,7 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   entity.outputAmount = event.params._earnedDAIAmount
   entity.save()
 
-  updateTotalFunds(event.address, event)
+  updateTotalFunds(event)
 
   let manager = Manager.load(event.params._sender.toHex())
   manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
@@ -352,7 +353,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.upgradeSignal = false
   entity.save()
 
-  updateTotalFunds(event.address, event)
+  updateTotalFunds(event)
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {

@@ -6,7 +6,7 @@ dataSources:
     name: BetokenProxy
     network: mainnet
     source:
-      address: "0x8bD90bf3835D6640D8E46aBCCbAB93DE8F74cc20"
+      address: "0xD1f120cb15E9722D6a727BA274D125C97f5447dB"
       abi: BetokenProxy
     mapping:
       kind: ethereum/events
