@@ -100,7 +100,7 @@ type DepositWithdraw @entity {
 }
 
 type Fund @entity {
-  id: ID! # always empty string
+  id: ID! # always BetokenFund
   cycleNumber: BigInt!
   cyclePhase: CyclePhase!
   startTimeOfCyclePhase: BigInt!

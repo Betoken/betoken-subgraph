@@ -60,6 +60,8 @@ let CALLER_REWARD = tenPow(18) // 10 ** 18 or 1 KRO
 let PRECISION = tenPow(18)
 let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
 let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
+let BETOKEN_ADDR = Address.fromString("0x4769890a00FB46cBd9C3F771Cc60FdEE439Bb230")
+let FUND_ID = 'BetokenFund'
 
 // Helpers
 
@@ -74,7 +76,7 @@ function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
 }
 
 function updateTotalFunds(fundAddress: Address, event: EthereumEvent): void {
-  let fund = Fund.load("")
+  let fund = Fund.load(FUND_ID)
   let fundContract = BetokenFund.bind(fundAddress)
   let kairo = kairoContract(fundAddress)
   let shares = sharesContract(fundAddress)
@@ -126,39 +128,8 @@ function getArrItem<T>(arr: Array<T>, idx: i32): T {
 // Handlers
 
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
-  let entity = Fund.load("");
+  let entity = Fund.load(FUND_ID);
   let fund = BetokenFund.bind(event.address)
-
-  if (entity == null) {
-    // initialize fund entity
-    let kairo = MiniMeToken.bind(fund.controlTokenAddr())
-    let shares = MiniMeToken.bind(fund.shareTokenAddr())
-    entity = new Fund("")
-    entity.totalFundsInDAI = fund.totalFundsInDAI()
-    entity.kairoPrice = fund.kairoPrice()
-    entity.kairoTotalSupply = kairo.totalSupply()
-    entity.sharesPrice = entity.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
-    entity.sharesTotalSupply = shares.totalSupply()
-    entity.sharesPriceHistory = new Array<string>()
-    let dp = new DataPoint('sharesPriceHistory-' + event.transaction.hash.toHex() + "-" + event.logIndex.toString())
-    dp.timestamp = event.block.timestamp
-    dp.value = entity.sharesPrice
-    dp.save()
-    entity.sharesPriceHistory.push(dp.id)
-    entity.cycleTotalCommission = fund.totalCommissionOfCycle(event.params._cycleNumber)
-    entity.managers = new Array<string>()
-    entity.hasFinalizedNextVersion = false
-    entity.upgradeVotingActive = false
-    entity.nextVersion = ""
-    entity.proposers = new Array<string>()
-    entity.candidates = new Array<string>()
-    entity.forVotes = new Array<BigInt>()
-    entity.againstVotes = new Array<BigInt>()
-    entity.upgradeSignalStrength = ZERO
-    entity.save()
-
-    MiniMeTokenTemplate.create(fund.shareTokenAddr())
-  }
 
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = CyclePhase[event.params._newPhase.toI32()]
@@ -371,7 +342,7 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
 }
 
 export function handleTotalCommissionPaid(event: TotalCommissionPaidEvent): void {
-  let entity = Fund.load("")
+  let entity = Fund.load(FUND_ID)
   entity.cycleTotalCommission = event.params._totalCommissionInDAI
   entity.save()
 }
@@ -405,20 +376,20 @@ export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
 export function handleDeveloperInitiatedUpgrade(
   event: DeveloperInitiatedUpgradeEvent
 ): void {
-  let entity = Fund.load("")
+  let entity = Fund.load(FUND_ID)
   entity.upgradeVotingActive = true
   entity.nextVersion = event.params._candidate.toHex()
   entity.save()
 }
 
 export function handleInitiatedUpgrade(event: InitiatedUpgradeEvent): void {
-  let entity = Fund.load("")
+  let entity = Fund.load(FUND_ID)
   entity.upgradeVotingActive = true
   entity.save()
 }
 
 export function handleProposedCandidate(event: ProposedCandidateEvent): void {
-  let entity = Fund.load("")
+  let entity = Fund.load(FUND_ID)
   let fund = BetokenFund.bind(event.address)
   let candidates = new Array<string>()
   let proposers = new Array<string>()
@@ -432,7 +403,7 @@ export function handleProposedCandidate(event: ProposedCandidateEvent): void {
 }
 
 export function handleVoted(event: VotedEvent): void {
-  let entity = Fund.load("")
+  let entity = Fund.load(FUND_ID)
   let fund = BetokenFund.bind(event.address)
   let forVotes = new Array<BigInt>()
   let againstVotes = new Array<BigInt>()
@@ -455,7 +426,7 @@ export function handleVoted(event: VotedEvent): void {
 export function handleFinalizedNextVersion(
   event: FinalizedNextVersionEvent
 ): void {
-  let entity = Fund.load("")
+  let entity = Fund.load(FUND_ID)
   entity.hasFinalizedNextVersion = true
   entity.nextVersion = event.params._nextVersion.toString()
   entity.save()
@@ -482,12 +453,41 @@ export function handleTokenTransfer(event: TransferEvent): void {
   }
 }
 
+// init fund call handler
+
+export function initFund(): void {
+  // initialize fund entity
+  let fund = BetokenFund.bind(BETOKEN_ADDR)
+  let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+  let shares = MiniMeToken.bind(fund.shareTokenAddr())
+  let entity = new Fund(FUND_ID)
+  entity.totalFundsInDAI = fund.totalFundsInDAI()
+  entity.kairoPrice = fund.kairoPrice()
+  entity.kairoTotalSupply = kairo.totalSupply()
+  entity.sharesPrice = entity.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
+  entity.sharesTotalSupply = shares.totalSupply()
+  entity.sharesPriceHistory = new Array<string>()
+  entity.cycleTotalCommission = ZERO
+  entity.managers = new Array<string>()
+  entity.hasFinalizedNextVersion = false
+  entity.upgradeVotingActive = false
+  entity.nextVersion = ""
+  entity.proposers = new Array<string>()
+  entity.candidates = new Array<string>()
+  entity.forVotes = new Array<BigInt>()
+  entity.againstVotes = new Array<BigInt>()
+  entity.upgradeSignalStrength = ZERO
+  entity.save()
+
+  MiniMeTokenTemplate.create(fund.shareTokenAddr())
+}
+
 // block handler
 
 import { EthereumBlock } from '@graphprotocol/graph-ts'
 
 export function handleBlock(block: EthereumBlock): void {
-  let fund = Fund.load("")
+  let fund = Fund.load(FUND_ID)
   if (fund != null) {
     for (let m = 0; m < fund.managers.length; m++) {
       let manager = Manager.load(getArrItem<string>(fund.managers, m))
