@@ -101,6 +101,7 @@ type DepositWithdraw @entity {
 
 type Fund @entity {
   id: ID! # always BetokenFund
+  address: String!
   cycleNumber: BigInt!
   cyclePhase: CyclePhase!
   startTimeOfCyclePhase: BigInt!

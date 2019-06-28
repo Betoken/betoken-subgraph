@@ -3,72 +3,28 @@ schema:
   file: schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: BetokenFund
+    name: BetokenProxy
     network: mainnet
     source:
-      address: "0x4769890a00FB46cBd9C3F771Cc60FdEE439Bb230"
-      abi: BetokenFund
+      address: "0x8bD90bf3835D6640D8E46aBCCbAB93DE8F74cc20"
+      abi: BetokenProxy
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.3
       language: wasm/assemblyscript
       entities:
-        - Manager
-        - BasicOrder
-        - CompoundOrder
-        - FulcrumOrder
-        - CommissionRedemption
-        - Investor
-        - DepositWithdraw
-        - BetokenFund
-        - DataPoint
+        - Fund
       abis:
-        - name: BetokenFund
-          file: BetokenFund/abis/BetokenFund.json
+        - name: BetokenProxy
+          file: BetokenProxy/abis/BetokenProxy.json
       blockHandlers:
         - handler: handleBlock
           filter:
             kind: call
       eventHandlers:
-        - event: FundCreated()
-          handler: initFund
-        - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
-          handler: handleChangedPhase
-        - event: Deposit(indexed uint256,indexed address,address,uint256,uint256,uint256)
-          handler: handleDeposit
-        - event: Withdraw(indexed uint256,indexed address,address,uint256,uint256,uint256)
-          handler: handleWithdraw
-        - event: CreatedInvestment(indexed uint256,indexed
-            address,uint256,address,uint256,uint256,uint256,uint256)
-          handler: handleCreatedInvestment
-        - event: SoldInvestment(indexed uint256,indexed
-            address,uint256,address,uint256,uint256,uint256)
-          handler: handleSoldInvestment
-        - event: CreatedCompoundOrder(indexed uint256,indexed
-            address,uint256,address,bool,address,uint256,uint256)
-          handler: handleCreatedCompoundOrder
-        - event: SoldCompoundOrder(indexed uint256,indexed
-            address,uint256,address,bool,address,uint256,uint256)
-          handler: handleSoldCompoundOrder
-        - event: CommissionPaid(indexed uint256,indexed address,uint256)
-          handler: handleCommissionPaid
-        - event: TotalCommissionPaid(indexed uint256,uint256)
-          handler: handleTotalCommissionPaid
-        - event: Register(indexed address,uint256,uint256)
-          handler: handleRegister
-        - event: SignaledUpgrade(indexed uint256,indexed address,indexed bool)
-          handler: handleSignaledUpgrade
-        - event: DeveloperInitiatedUpgrade(indexed uint256,address)
-          handler: handleDeveloperInitiatedUpgrade
-        - event: InitiatedUpgrade(indexed uint256)
-          handler: handleInitiatedUpgrade
-        - event: ProposedCandidate(indexed uint256,indexed uint256,indexed address,address)
-          handler: handleProposedCandidate
-        - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
-          handler: handleVoted
-        - event: FinalizedNextVersion(indexed uint256,address)
-          handler: handleFinalizedNextVersion
-      file: BetokenFund/BetokenFund.wasm
+        - event: UpdatedFundAddress(address)
+          handler: handleUpdatedFundAddress
+      file: BetokenProxy/BetokenProxy.wasm
     templates:
       - name: CompoundOrderContract
         kind: ethereum/contract
@@ -81,10 +37,10 @@ dataSources:
           language: wasm/assemblyscript
           entities:
             - Fund
-          file: BetokenFund/templates/CompoundOrderContract/CompoundOrderContract.wasm
+          file: BetokenProxy/templates/CompoundOrderContract/CompoundOrderContract.wasm
           abis:
             - name: CompoundOrderContract
-              file: BetokenFund/templates/CompoundOrderContract/abis/CompoundOrder.json
+              file: BetokenProxy/templates/CompoundOrderContract/abis/CompoundOrder.json
       - name: PositionToken
         kind: ethereum/contract
         network: mainnet
@@ -96,10 +52,10 @@ dataSources:
           language: wasm/assemblyscript
           entities:
             - Fund
-          file: BetokenFund/templates/PositionToken/PositionToken.wasm
+          file: BetokenProxy/templates/PositionToken/PositionToken.wasm
           abis:
             - name: PositionToken
-              file: BetokenFund/templates/PositionToken/abis/PositionToken.json
+              file: BetokenProxy/templates/PositionToken/abis/PositionToken.json
       - name: MiniMeToken
         kind: ethereum/contract
         network: mainnet
@@ -111,10 +67,10 @@ dataSources:
           language: wasm/assemblyscript
           entities:
             - Fund
-          file: BetokenFund/templates/MiniMeToken/MiniMeToken.wasm
+          file: BetokenProxy/templates/MiniMeToken/MiniMeToken.wasm
           abis:
             - name: MiniMeToken
-              file: BetokenFund/templates/MiniMeToken/abis/MiniMeToken.json
+              file: BetokenProxy/templates/MiniMeToken/abis/MiniMeToken.json
           eventHandlers:
             - event: Transfer(indexed address,indexed address,uint256)
               handler: handleTokenTransfer
@@ -129,7 +85,67 @@ dataSources:
           language: wasm/assemblyscript
           entities:
             - Fund
-          file: BetokenFund/templates/KyberNetwork/KyberNetwork.wasm
+          file: BetokenProxy/templates/KyberNetwork/KyberNetwork.wasm
           abis:
             - name: KyberNetwork
-              file: BetokenFund/templates/KyberNetwork/abis/KyberNetwork.json
+              file: BetokenProxy/templates/KyberNetwork/abis/KyberNetwork.json
+      - kind: ethereum/contract
+        name: BetokenFund
+        network: mainnet
+        source:
+          abi: BetokenFund
+        mapping:
+          kind: ethereum/events
+          apiVersion: 0.0.3
+          language: wasm/assemblyscript
+          entities:
+            - Manager
+            - BasicOrder
+            - CompoundOrder
+            - FulcrumOrder
+            - CommissionRedemption
+            - Investor
+            - DepositWithdraw
+            - BetokenFund
+            - DataPoint
+          abis:
+            - name: BetokenFund
+              file: BetokenProxy/templates/BetokenFund/abis/BetokenFund.json
+          eventHandlers:
+            - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
+              handler: handleChangedPhase
+            - event: Deposit(indexed uint256,indexed address,address,uint256,uint256,uint256)
+              handler: handleDeposit
+            - event: Withdraw(indexed uint256,indexed address,address,uint256,uint256,uint256)
+              handler: handleWithdraw
+            - event: CreatedInvestment(indexed uint256,indexed
+                address,uint256,address,uint256,uint256,uint256,uint256)
+              handler: handleCreatedInvestment
+            - event: SoldInvestment(indexed uint256,indexed
+                address,uint256,address,uint256,uint256,uint256)
+              handler: handleSoldInvestment
+            - event: CreatedCompoundOrder(indexed uint256,indexed
+                address,uint256,address,bool,address,uint256,uint256)
+              handler: handleCreatedCompoundOrder
+            - event: SoldCompoundOrder(indexed uint256,indexed
+                address,uint256,address,bool,address,uint256,uint256)
+              handler: handleSoldCompoundOrder
+            - event: CommissionPaid(indexed uint256,indexed address,uint256)
+              handler: handleCommissionPaid
+            - event: TotalCommissionPaid(indexed uint256,uint256)
+              handler: handleTotalCommissionPaid
+            - event: Register(indexed address,uint256,uint256)
+              handler: handleRegister
+            - event: SignaledUpgrade(indexed uint256,indexed address,indexed bool)
+              handler: handleSignaledUpgrade
+            - event: DeveloperInitiatedUpgrade(indexed uint256,address)
+              handler: handleDeveloperInitiatedUpgrade
+            - event: InitiatedUpgrade(indexed uint256)
+              handler: handleInitiatedUpgrade
+            - event: ProposedCandidate(indexed uint256,indexed uint256,indexed address,address)
+              handler: handleProposedCandidate
+            - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
+              handler: handleVoted
+            - event: FinalizedNextVersion(indexed uint256,address)
+              handler: handleFinalizedNextVersion
+          file: BetokenProxy/templates/BetokenFund/BetokenFund.wasm
