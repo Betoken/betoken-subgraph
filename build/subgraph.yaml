@@ -22,6 +22,14 @@ dataSources:
       abis:
         - name: BetokenProxy
           file: BetokenProxy/abis/BetokenProxy.json
+        - name: CompoundOrder
+          file: BetokenProxy/abis/CompoundOrder.json
+        - name: PositionToken
+          file: BetokenProxy/abis/PositionToken.json
+        - name: MiniMeToken
+          file: BetokenProxy/abis/MiniMeToken.json
+        - name: BetokenFund
+          file: BetokenProxy/abis/BetokenFund.json
       blockHandlers:
         - handler: handleBlock
           filter:
@@ -114,6 +122,12 @@ dataSources:
             - Fund
             - DataPoint
           abis:
+            - name: CompoundOrder
+              file: BetokenProxy/templates/BetokenFund/abis/CompoundOrder.json
+            - name: PositionToken
+              file: BetokenProxy/templates/BetokenFund/abis/PositionToken.json
+            - name: MiniMeToken
+              file: BetokenProxy/templates/BetokenFund/abis/MiniMeToken.json
             - name: BetokenFund
               file: BetokenProxy/templates/BetokenFund/abis/BetokenFund.json
           file: BetokenProxy/templates/BetokenFund/BetokenFund.wasm

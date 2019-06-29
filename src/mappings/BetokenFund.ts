@@ -28,100 +28,25 @@ import {
   CommissionRedemption,
   Investor,
   DepositWithdraw,
-  Fund,
-  DataPoint
+  Fund
 } from "../../generated/schema"
 
 import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/CompoundOrder/CompoundOrder'
 import { PositionToken } from '../../generated/BetokenProxy/templates/PositionToken/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
 
-import { BigInt, Address, EthereumEvent } from '@graphprotocol/graph-ts'
+import { BigInt, Address, BigDecimal } from '@graphprotocol/graph-ts'
 
-// Constants
-
-let CyclePhase = new Array<string>()
-CyclePhase.push('INTERMISSION')
-CyclePhase.push('MANAGE')
-
-let VoteDirection = new Array<string>()
-VoteDirection.push('EMPTY')
-VoteDirection.push('FOR')
-VoteDirection.push('AGAINST')
-
-import { PTOKENS, pTokenInfo } from '../fulcrum_tokens'
-let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60) // 3 days, in seconds
-let ZERO = BigInt.fromI32(0)
-let CALLER_REWARD = tenPow(18) // 10 ** 18 or 1 KRO
-let PRECISION = tenPow(18)
-
-let FUND_ID = 'BetokenFund'
-
-// Helpers
-
-function isFulcrumTokenAddress(_tokenAddress: string): boolean {
-  let result = PTOKENS.findIndex((x) => x.pTokens.findIndex((y) => y.address === _tokenAddress) != -1);
-  return result != -1;
-}
-
-function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
-  let pTokens = PTOKENS[PTOKENS.findIndex((x) => x.pTokens.findIndex((y) => y.address === _addr) != -1)].pTokens;
-  return pTokens[pTokens.findIndex((y) => y.address === _addr)]
-}
-
-function updateTotalFunds(event: EthereumEvent): void {
-  let fund = Fund.load(FUND_ID)
-  let fundAddress = Address.fromString(fund.address)
-  let fundContract = BetokenFund.bind(fundAddress)
-  let kairo = kairoContract(fundAddress)
-  let shares = sharesContract(fundAddress)
-  fund.totalFundsInDAI = fundContract.totalFundsInDAI()
-  fund.kairoPrice = fundContract.kairoPrice()
-  fund.kairoTotalSupply = kairo.totalSupply()
-  fund.sharesPrice = fund.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
-  fund.sharesTotalSupply = shares.totalSupply()
-
-  let dp = new DataPoint('sharesPriceHistory-' + event.transaction.hash.toHex() + "-" + event.logIndex.toString())
-  dp.timestamp = event.block.timestamp
-  dp.value = fund.sharesPrice
-  dp.save()
-
-  fund.sharesPriceHistory.push(dp.id)
-  fund.save()
-}
-
-function tenPow(exponent: number): BigInt {
-  let result = BigInt.fromI32(1)
-  for (let i = 0; i < exponent; i++) {
-    result = result.times(BigInt.fromI32(10))
-  }
-  return result
-}
-
-function kairoContract(fundAddress: Address): MiniMeToken {
-  let fund = BetokenFund.bind(fundAddress)
-  return MiniMeToken.bind(fund.controlTokenAddr())
-}
-
-function sharesContract(fundAddress: Address): MiniMeToken {
-  let fund = BetokenFund.bind(fundAddress)
-  return MiniMeToken.bind(fund.shareTokenAddr())
-}
-
-function getArrItem<T>(arr: Array<T>, idx: i32): T {
-  let a = new Array<T>()
-  a = a.concat(arr)
-  return a[idx]
-}
+import * as Utils from '../utils'
 
 // Handlers
 
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
-  let entity = Fund.load(FUND_ID);
+  let entity = Fund.load(Utils.FUND_ID);
   let fund = BetokenFund.bind(event.address)
 
   entity.cycleNumber = event.params._cycleNumber
-  entity.cyclePhase = CyclePhase[event.params._newPhase.toI32()]
+  entity.cyclePhase = Utils.CyclePhase[event.params._newPhase.toI32()]
   entity.startTimeOfCyclePhase = event.block.timestamp
   if (!fund.hasFinalizedNextVersion()) {
     entity.candidates.length = 0
@@ -129,22 +54,22 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     entity.forVotes.length = 0
     entity.againstVotes.length = 0
     entity.upgradeVotingActive = false
-    entity.upgradeSignalStrength = ZERO
+    entity.upgradeSignalStrength = Utils.ZERO_DEC
     entity.nextVersion = ""
   }
   entity.save()
 
   let caller = Manager.load(event.transaction.from.toHex())
   if (caller != null) {
-    caller.kairoBalance = caller.kairoBalance.plus(CALLER_REWARD)
+    caller.kairoBalance = caller.kairoBalance.plus(Utils.CALLER_REWARD)
   }
   caller.save()
 
   for (let m: i32 = 0; m < entity.managers.length; m++) {
-    let manager = Manager.load(getArrItem<string>(entity.managers, m))
+    let manager = Manager.load(Utils.getArrItem<string>(entity.managers, m))
     manager.baseStake = manager.kairoBalance
-    manager.riskTaken = ZERO
-    manager.riskThreshold = manager.baseStake.times(RISK_THRESHOLD_TIME)
+    manager.riskTaken = Utils.ZERO_DEC
+    manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
     manager.save()
   }
 }
@@ -155,7 +80,7 @@ export function handleDeposit(event: DepositEvent): void {
     investor = new Investor(event.transaction.from.toHex())
     let fund = BetokenFund.bind(event.address)
     let shares = MiniMeToken.bind(fund.shareTokenAddr())
-    investor.sharesBalance = shares.balanceOf(Address.fromString(investor.id))
+    investor.sharesBalance = Utils.normalize(shares.balanceOf(Address.fromString(investor.id)))
     investor.depositWithdrawHistory = new Array<string>()
     investor.save()
   }
@@ -163,7 +88,7 @@ export function handleDeposit(event: DepositEvent): void {
   let entity = new DepositWithdraw(
     event.transaction.hash.toHex() + "-" + event.logIndex.toString()
   )
-  entity.amountInDAI = event.params._daiAmount
+  entity.amountInDAI = Utils.normalize(event.params._daiAmount)
   entity.timestamp = event.params._timestamp
   entity.isDeposit = true
   entity.txHash = event.transaction.hash.toHex()
@@ -172,7 +97,7 @@ export function handleDeposit(event: DepositEvent): void {
   investor.depositWithdrawHistory.push(entity.id)
   investor.save()
 
-  updateTotalFunds(event)
+  Utils.updateTotalFunds(event)
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -181,7 +106,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     investor = new Investor(event.transaction.from.toHex())
     let fund = BetokenFund.bind(event.address)
     let shares = MiniMeToken.bind(fund.shareTokenAddr())
-    investor.sharesBalance = shares.balanceOf(Address.fromString(investor.id))
+    investor.sharesBalance = Utils.normalize(shares.balanceOf(Address.fromString(investor.id)))
     investor.depositWithdrawHistory = new Array<string>()
     investor.save()
   }
@@ -189,7 +114,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   let entity = new DepositWithdraw(
     event.transaction.hash.toHex() + "-" + event.logIndex.toString()
   )
-  entity.amountInDAI = event.params._daiAmount
+  entity.amountInDAI = Utils.normalize(event.params._daiAmount)
   entity.timestamp = event.params._timestamp
   entity.isDeposit = false
   entity.txHash = event.transaction.hash.toHex()
@@ -198,72 +123,74 @@ export function handleWithdraw(event: WithdrawEvent): void {
   investor.depositWithdrawHistory.push(entity.id)
   investor.save()
 
-  updateTotalFunds(event)
+  Utils.updateTotalFunds(event)
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
-  if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
+  let tokenContract = MiniMeToken.bind(event.params._tokenAddress)
+  let decimals: i32 = tokenContract.decimals()
+  if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     let entity = new FulcrumOrder(id);
-    entity.isShort = assetPTokenAddressToInfo(event.params._tokenAddress.toHex()).type;
+    entity.isShort = Utils.assetPTokenAddressToInfo(event.params._tokenAddress.toHex()).type;
     entity.idx = event.params._id
     entity.cycleNumber = event.params._cycleNumber
     entity.tokenAddress = event.params._tokenAddress.toHex()
-    entity.tokenAmount = event.params._tokenAmount
-    entity.stake = event.params._stakeInWeis
-    entity.buyPrice = event.params._buyPrice
-    entity.sellPrice = ZERO
+    entity.tokenAmount = event.params._tokenAmount.toBigDecimal().div(Utils.tenPow(decimals).toBigDecimal())
+    entity.stake = Utils.normalize(event.params._stakeInWeis)
+    entity.buyPrice = Utils.normalize(event.params._buyPrice)
     entity.buyTime = event.block.timestamp
-    entity.sellTime = ZERO
+    entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
     let pToken = PositionToken.bind(event.params._tokenAddress)
-    entity.liquidationPrice = pToken.liquidationPrice()
+    entity.sellPrice = Utils.normalize(pToken.tokenPrice())
+    entity.liquidationPrice = Utils.normalize(pToken.liquidationPrice())
     entity.save()
   } else {
     let entity = new BasicOrder(id);
     entity.idx = event.params._id
     entity.cycleNumber = event.params._cycleNumber
     entity.tokenAddress = event.params._tokenAddress.toHex()
-    entity.tokenAmount = event.params._tokenAmount
-    entity.stake = event.params._stakeInWeis
-    entity.buyPrice = event.params._buyPrice
-    entity.sellPrice = ZERO
+    entity.tokenAmount = event.params._tokenAmount.toBigDecimal().div(Utils.tenPow(decimals).toBigDecimal())
+    entity.stake = Utils.normalize(event.params._stakeInWeis)
+    entity.buyPrice = Utils.normalize(event.params._buyPrice)
+    entity.sellPrice = Utils.getPriceOfToken(event.params._tokenAddress)
     entity.buyTime = event.block.timestamp
-    entity.sellTime = ZERO
+    entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
     entity.save()
   }
 
   let manager = Manager.load(event.params._sender.toHex())
-  if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
+  if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     manager.fulcrumOrders.push(id)
   } else {
     manager.basicOrders.push(id)
   }
-  manager.kairoBalance = manager.kairoBalance.minus(event.params._stakeInWeis)
+  manager.kairoBalance = manager.kairoBalance.minus(Utils.normalize(event.params._stakeInWeis))
   manager.save()
 }
 
 export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
-  if (isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
+  if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     let entity = FulcrumOrder.load(id);
     entity.isSold = true
     entity.sellTime = event.block.timestamp
-    entity.sellPrice = event.params._sellPrice
+    entity.sellPrice = Utils.normalize(event.params._sellPrice)
     entity.save()
   } else {
     let entity = BasicOrder.load(id);
     entity.isSold = true
     entity.sellTime = event.block.timestamp
-    entity.sellPrice = event.params._sellPrice
+    entity.sellPrice = Utils.normalize(event.params._sellPrice)
     entity.save()
   }
   
-  updateTotalFunds(event)
+  Utils.updateTotalFunds(event)
 
   let manager = Manager.load(event.params._sender.toHex())
-  manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
+  manager.kairoBalance = manager.kairoBalance.plus(Utils.normalize(event.params._receivedKairo))
   manager.save()
 }
 
@@ -275,22 +202,22 @@ export function handleCreatedCompoundOrder(
   entity.idx = event.params._id
   entity.cycleNumber = event.params._cycleNumber
   entity.tokenAddress = event.params._tokenAddress.toHex()
-  entity.stake = event.params._stakeInWeis
-  entity.collateralAmountInDAI = event.params._costDAIAmount
+  entity.stake = Utils.normalize(event.params._stakeInWeis)
+  entity.collateralAmountInDAI = Utils.normalize(event.params._costDAIAmount)
   entity.buyTime = event.block.timestamp
-  entity.sellTime = ZERO
+  entity.sellTime = Utils.ZERO_INT
   entity.isShort = event.params._orderType
   entity.orderAddress = event.params._order.toHex()
-  entity.outputAmount = ZERO
+  entity.outputAmount = Utils.ZERO_DEC
 
   let contract = CompoundOrderContract.bind(event.params._order)
-  entity.marketCollateralFactor = contract.getMarketCollateralFactor()
-  entity.collateralRatio = contract.getCurrentCollateralRatioInDAI()
+  entity.marketCollateralFactor = Utils.normalize(contract.getMarketCollateralFactor())
+  entity.collateralRatio = Utils.normalize(contract.getCurrentCollateralRatioInDAI())
   let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
-  entity.currProfit = currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1))
-  entity.currCollateral = contract.getCurrentCollateralInDAI()
-  entity.currBorrow = contract.getCurrentBorrowInDAI()
-  entity.currCash = contract.getCurrentCashInDAI()
+  entity.currProfit = Utils.normalize(currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1)))
+  entity.currCollateral = Utils.normalize(contract.getCurrentCollateralInDAI())
+  entity.currBorrow = Utils.normalize(contract.getCurrentBorrowInDAI())
+  entity.currCash = Utils.normalize(contract.getCurrentCashInDAI())
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
@@ -304,13 +231,13 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   let entity = CompoundOrder.load(id)
   entity.isSold = true
   entity.sellTime = event.block.timestamp
-  entity.outputAmount = event.params._earnedDAIAmount
+  entity.outputAmount = Utils.normalize(event.params._earnedDAIAmount)
   entity.save()
 
-  updateTotalFunds(event)
+  Utils.updateTotalFunds(event)
 
   let manager = Manager.load(event.params._sender.toHex())
-  manager.kairoBalance = manager.kairoBalance.plus(event.params._receivedKairo)
+  manager.kairoBalance = manager.kairoBalance.plus(Utils.normalize(event.params._receivedKairo))
   manager.save()
 }
 
@@ -320,7 +247,7 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
   )
   entity.timestamp = event.block.timestamp
   entity.cycleNumber = event.params._cycleNumber
-  entity.amountInDAI = event.params._commission
+  entity.amountInDAI = Utils.normalize(event.params._commission)
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
 
@@ -331,20 +258,20 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
 }
 
 export function handleTotalCommissionPaid(event: TotalCommissionPaidEvent): void {
-  let entity = Fund.load(FUND_ID)
-  entity.cycleTotalCommission = event.params._totalCommissionInDAI
+  let entity = Fund.load(Utils.FUND_ID)
+  entity.cycleTotalCommission = Utils.normalize(event.params._totalCommissionInDAI)
   entity.save()
 }
 
 export function handleRegister(event: RegisterEvent): void {
   let entity = new Manager(event.params._manager.toHex())
-  entity.kairoBalance = event.params._kairoReceived
-  entity.kairoBalanceWithStake = event.params._kairoReceived
+  entity.kairoBalance = Utils.normalize(event.params._kairoReceived)
+  entity.kairoBalanceWithStake = entity.kairoBalance
   entity.kairoBalanceWithStakeHistory = new Array<string>()
-  entity.baseStake = event.params._kairoReceived
-  entity.riskTaken = ZERO
-  entity.riskThreshold = entity.baseStake.times(RISK_THRESHOLD_TIME)
-  entity.lastCommissionRedemption = ZERO
+  entity.baseStake = entity.kairoBalance
+  entity.riskTaken = Utils.ZERO_DEC
+  entity.riskThreshold = entity.baseStake.times(Utils.RISK_THRESHOLD_TIME)
+  entity.lastCommissionRedemption = Utils.ZERO_INT
   entity.basicOrders = new Array<string>()
   entity.fulcrumOrders = new Array<string>()
   entity.compoundOrders = new Array<string>()
@@ -353,7 +280,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.upgradeSignal = false
   entity.save()
 
-  updateTotalFunds(event)
+  Utils.updateTotalFunds(event)
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
@@ -365,20 +292,20 @@ export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
 export function handleDeveloperInitiatedUpgrade(
   event: DeveloperInitiatedUpgradeEvent
 ): void {
-  let entity = Fund.load(FUND_ID)
+  let entity = Fund.load(Utils.FUND_ID)
   entity.upgradeVotingActive = true
   entity.nextVersion = event.params._candidate.toHex()
   entity.save()
 }
 
 export function handleInitiatedUpgrade(event: InitiatedUpgradeEvent): void {
-  let entity = Fund.load(FUND_ID)
+  let entity = Fund.load(Utils.FUND_ID)
   entity.upgradeVotingActive = true
   entity.save()
 }
 
 export function handleProposedCandidate(event: ProposedCandidateEvent): void {
-  let entity = Fund.load(FUND_ID)
+  let entity = Fund.load(Utils.FUND_ID)
   let fund = BetokenFund.bind(event.address)
   let candidates = new Array<string>()
   let proposers = new Array<string>()
@@ -392,13 +319,13 @@ export function handleProposedCandidate(event: ProposedCandidateEvent): void {
 }
 
 export function handleVoted(event: VotedEvent): void {
-  let entity = Fund.load(FUND_ID)
+  let entity = Fund.load(Utils.FUND_ID)
   let fund = BetokenFund.bind(event.address)
-  let forVotes = new Array<BigInt>()
-  let againstVotes = new Array<BigInt>()
+  let forVotes = new Array<BigDecimal>()
+  let againstVotes = new Array<BigDecimal>()
   for (let i = 0; i < 5; i++) {
-    forVotes.push(fund.forVotes(BigInt.fromI32(i)))
-    againstVotes.push(fund.againstVotes(BigInt.fromI32(i)))
+    forVotes.push(Utils.normalize(fund.forVotes(BigInt.fromI32(i))))
+    againstVotes.push(Utils.normalize(fund.againstVotes(BigInt.fromI32(i))))
   }
   entity.forVotes = forVotes
   entity.againstVotes = againstVotes
@@ -407,7 +334,7 @@ export function handleVoted(event: VotedEvent): void {
   let manager = Manager.load(event.params._sender.toHex())
   let votes = new Array<string>()
   for (let i = 0; i < 5; i++) {
-    votes.push(VoteDirection[fund.managerVotes(fund.cycleNumber(), event.params._sender, BigInt.fromI32(i))])
+    votes.push(Utils.VoteDirection[fund.managerVotes(fund.cycleNumber(), event.params._sender, BigInt.fromI32(i))])
   }
   manager.votes = votes
 }
@@ -415,7 +342,7 @@ export function handleVoted(event: VotedEvent): void {
 export function handleFinalizedNextVersion(
   event: FinalizedNextVersionEvent
 ): void {
-  let entity = Fund.load(FUND_ID)
+  let entity = Fund.load(Utils.FUND_ID)
   entity.hasFinalizedNextVersion = true
   entity.nextVersion = event.params._nextVersion.toString()
   entity.save()
@@ -435,9 +362,9 @@ export function handleTokenTransfer(event: TransferEvent): void {
     }
     // update balances
     let from = Investor.load(event.params._from.toHex())
-    from.sharesBalance = contract.balanceOf(event.params._from)
+    from.sharesBalance = Utils.normalize(contract.balanceOf(event.params._from))
     from.save()
-    investor.sharesBalance = contract.balanceOf(to)
+    investor.sharesBalance = Utils.normalize(contract.balanceOf(to))
     investor.save()
   }
 }

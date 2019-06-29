@@ -12,120 +12,113 @@ import {
   Fund,
   DataPoint
 } from "../../generated/schema"
-import { KyberNetwork } from "../../generated/BetokenProxy/templates/KyberNetwork/KyberNetwork"
 import { 
   MiniMeToken as MiniMeTokenTemplate,
   BetokenFund as BetokenFundTemplate
 } from '../../generated/BetokenProxy/templates'
 import { PositionToken } from '../../generated/BetokenProxy/templates/PositionToken/PositionToken'
-import { CompoundOrderContract } from '../../generated/BetokenProxy/templates/CompoundOrderContract/CompoundOrderContract'
+import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/CompoundOrder/CompoundOrder'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
-import { EthereumBlock } from '@graphprotocol/graph-ts'
+import { EthereumBlock, BigDecimal } from '@graphprotocol/graph-ts'
 import { BigInt, Address } from '@graphprotocol/graph-ts'
 
-let FUND_ID = 'BetokenFund'
-let ZERO = BigInt.fromI32(0)
-let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
-let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
-let PRECISION = tenPow(18)
-
-function getArrItem<T>(arr: Array<T>, idx: i32): T {
-  let a = new Array<T>()
-  a = a.concat(arr)
-  return a[idx]
-}
-
-function getPriceOfToken(tokenAddress: Address): BigInt {
-  let kyber = KyberNetwork.bind(KYBER_ADDR)
-  let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(15))
-  return result.value1
-}
-
-function tenPow(exponent: number): BigInt {
-  let result = BigInt.fromI32(1)
-  for (let i = 0; i < exponent; i++) {
-    result = result.times(BigInt.fromI32(10))
-  }
-  return result
-}
+import * as Utils from '../utils'
 
 // block handler
 
 export function handleBlock(block: EthereumBlock): void {
-  let fund = Fund.load(FUND_ID)
+  let fund = Fund.load(Utils.FUND_ID)
   if (fund != null) {
     for (let m = 0; m < fund.managers.length; m++) {
-      let manager = Manager.load(getArrItem<string>(fund.managers, m))
-      let riskTaken = ZERO
-      let totalStakeValue = ZERO
+      let manager = Manager.load(Utils.getArrItem<string>(fund.managers, m))
+      let riskTaken = Utils.ZERO_DEC
+      let totalStakeValue = Utils.ZERO_DEC
       // basic orders
       for (let o = 0; o < manager.basicOrders.length; o++) {
-        let order = BasicOrder.load(getArrItem<string>(manager.basicOrders, o))
+        let order = BasicOrder.load(Utils.getArrItem<string>(manager.basicOrders, o))
         if (order.cycleNumber.equals(fund.cycleNumber)) {
           // update price
           if (!order.isSold) {
-            order.sellPrice = getPriceOfToken(Address.fromString(order.tokenAddress))
+            order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress))
             order.save()
             // record stake value
-            totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+            if (order.buyPrice.equals(Utils.ZERO_DEC)) {
+              totalStakeValue = totalStakeValue.plus(order.stake)
+            } else {
+              totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+            }
           }
           // record risk
+          let time: BigDecimal
           if (order.isSold) {
-            riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+            time = order.sellTime.minus(order.buyTime).toBigDecimal()
           } else {
-            riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+            time = block.timestamp.minus(order.buyTime).toBigDecimal()
           }
+          riskTaken = riskTaken.plus(manager.baseStake.times(time))
         }
       }
 
       // Fulcrum orders
       for (let o = 0; o < manager.fulcrumOrders.length; o++) {
-        let order = FulcrumOrder.load(getArrItem<string>(manager.fulcrumOrders, o))
+        let order = FulcrumOrder.load(Utils.getArrItem<string>(manager.fulcrumOrders, o))
         if (order.cycleNumber.equals(fund.cycleNumber)) {
           // update price
           if (!order.isSold) {
             let pToken = PositionToken.bind(Address.fromString(order.tokenAddress))
-            order.sellPrice = pToken.tokenPrice()
-            order.liquidationPrice = pToken.liquidationPrice()
+            order.sellPrice = Utils.normalize(pToken.tokenPrice())
+            order.liquidationPrice = Utils.normalize(pToken.liquidationPrice())
             order.save()
             // record stake value
-            totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+            if (order.buyPrice.equals(Utils.ZERO_DEC)) {
+              totalStakeValue = totalStakeValue.plus(order.stake)
+            } else {
+              totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+            }
           }
           // record risk
+          let time: BigDecimal
           if (order.isSold) {
-            riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+            time = order.sellTime.minus(order.buyTime).toBigDecimal()
           } else {
-            riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+            time = block.timestamp.minus(order.buyTime).toBigDecimal()
           }
+          riskTaken = riskTaken.plus(manager.baseStake.times(time))
         }
       }
 
       // Compound orders
       for (let o = 0; o < manager.compoundOrders.length; o++) {
-        let order = CompoundOrder.load(getArrItem<string>(manager.compoundOrders, o))
+        let order = CompoundOrder.load(Utils.getArrItem<string>(manager.compoundOrders, o))
         if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
           let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
-          order.collateralRatio = contract.getCurrentCollateralRatioInDAI()
+          order.collateralRatio = Utils.normalize(contract.getCurrentCollateralRatioInDAI())
 
           let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
-          order.currProfit = currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1))
+          order.currProfit = Utils.normalize(currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1)))
 
-          order.currCollateral = contract.getCurrentCollateralInDAI()
-          order.currBorrow = contract.getCurrentBorrowInDAI()
-          order.currCash = contract.getCurrentCashInDAI()
+          order.currCollateral = Utils.normalize(contract.getCurrentCollateralInDAI())
+          order.currBorrow = Utils.normalize(contract.getCurrentBorrowInDAI())
+          order.currCash = Utils.normalize(contract.getCurrentCashInDAI())
           order.save()
 
           // record stake value
-          totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
+          if (order.collateralAmountInDAI.equals(Utils.ZERO_DEC)) {
+            totalStakeValue = totalStakeValue.plus(order.stake)
+          } else {
+            totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
+          }
         }
 
         // record risk
         if (order.cycleNumber.equals(fund.cycleNumber)) {
+          let time: BigDecimal
           if (order.isSold) {
-            riskTaken = riskTaken.plus(order.sellTime.minus(order.buyTime).times(manager.baseStake))
+            time = order.sellTime.minus(order.buyTime).toBigDecimal()
           } else {
-            riskTaken = riskTaken.plus(block.timestamp.minus(order.buyTime).times(manager.baseStake))
+            time = block.timestamp.minus(order.buyTime).toBigDecimal()
           }
+          riskTaken = riskTaken.plus(manager.baseStake.times(time))
         }
       }
 
@@ -150,19 +143,23 @@ export function handleBlock(block: EthereumBlock): void {
 
 export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
   // initialize fund entity
-  let entity = Fund.load(FUND_ID)
+  let entity = Fund.load(Utils.FUND_ID)
   if (entity == null) {
-    entity = new Fund(FUND_ID)
+    entity = new Fund(Utils.FUND_ID)
     let fund = BetokenFund.bind(event.params._newFundAddr)
     let kairo = MiniMeToken.bind(fund.controlTokenAddr())
     let shares = MiniMeToken.bind(fund.shareTokenAddr())
-    entity.totalFundsInDAI = fund.totalFundsInDAI()
-    entity.kairoPrice = fund.kairoPrice()
-    entity.kairoTotalSupply = kairo.totalSupply()
-    entity.sharesPrice = entity.totalFundsInDAI.times(PRECISION).div(shares.totalSupply())
-    entity.sharesTotalSupply = shares.totalSupply()
+    entity.totalFundsInDAI = Utils.normalize(fund.totalFundsInDAI())
+    entity.kairoPrice = Utils.normalize(fund.kairoPrice())
+    entity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
+    if (shares.totalSupply().equals(Utils.ZERO_INT)) {
+      entity.sharesPrice = Utils.PRECISION
+    } else {
+      entity.sharesPrice = entity.totalFundsInDAI.div(Utils.normalize(shares.totalSupply()))
+    }
+    entity.sharesTotalSupply = Utils.normalize(shares.totalSupply())
     entity.sharesPriceHistory = new Array<string>()
-    entity.cycleTotalCommission = ZERO
+    entity.cycleTotalCommission = Utils.ZERO_DEC
     entity.managers = new Array<string>()
 
     MiniMeTokenTemplate.create(fund.shareTokenAddr())
@@ -173,9 +170,9 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
   entity.nextVersion = ""
   entity.proposers = new Array<string>()
   entity.candidates = new Array<string>()
-  entity.forVotes = new Array<BigInt>()
-  entity.againstVotes = new Array<BigInt>()
-  entity.upgradeSignalStrength = ZERO
+  entity.forVotes = new Array<BigDecimal>()
+  entity.againstVotes = new Array<BigDecimal>()
+  entity.upgradeSignalStrength = Utils.ZERO_DEC
   entity.save()
 
   BetokenFundTemplate.create(event.params._newFundAddr)

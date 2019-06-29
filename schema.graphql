@@ -11,12 +11,12 @@ enum VoteDirection {
 
 type Manager @entity {
   id: ID! # address
-  kairoBalance: BigInt!
-  kairoBalanceWithStake: BigInt!
+  kairoBalance: BigDecimal!
+  kairoBalanceWithStake: BigDecimal!
   kairoBalanceWithStakeHistory: [DataPoint!]!
-  baseStake: BigInt!
-  riskTaken: BigInt!
-  riskThreshold: BigInt!
+  baseStake: BigDecimal!
+  riskTaken: BigDecimal!
+  riskThreshold: BigDecimal!
   lastCommissionRedemption: BigInt!
   basicOrders: [BasicOrder!]!
   compoundOrders: [CompoundOrder!]!
@@ -31,10 +31,10 @@ type BasicOrder @entity {
   idx: BigInt!
   tokenAddress: String!
   cycleNumber: BigInt!
-  stake: BigInt!
-  tokenAmount: BigInt!
-  buyPrice: BigInt!
-  sellPrice: BigInt!
+  stake: BigDecimal!
+  tokenAmount: BigDecimal!
+  buyPrice: BigDecimal!
+  sellPrice: BigDecimal!
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!
@@ -45,15 +45,15 @@ type CompoundOrder @entity {
   idx: BigInt!
   tokenAddress: String!
   cycleNumber: BigInt!
-  stake: BigInt!
-  collateralAmountInDAI: BigInt!
-  collateralRatio: BigInt!
-  currProfit: BigInt!
-  currCollateral: BigInt!
-  currBorrow: BigInt!
-  currCash: BigInt!
-  marketCollateralFactor: BigInt!
-  outputAmount: BigInt!
+  stake: BigDecimal!
+  collateralAmountInDAI: BigDecimal!
+  collateralRatio: BigDecimal!
+  currProfit: BigDecimal!
+  currCollateral: BigDecimal!
+  currBorrow: BigDecimal!
+  currCash: BigDecimal!
+  marketCollateralFactor: BigDecimal!
+  outputAmount: BigDecimal!
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!
@@ -66,11 +66,11 @@ type FulcrumOrder @entity {
   idx: BigInt!
   tokenAddress: String!
   cycleNumber: BigInt!
-  stake: BigInt!
-  tokenAmount: BigInt!
-  buyPrice: BigInt!
-  sellPrice: BigInt! # unit is underlyingToken/pToken
-  liquidationPrice: BigInt! # unit is underlyingToken/pToken
+  stake: BigDecimal!
+  tokenAmount: BigDecimal!
+  buyPrice: BigDecimal!
+  sellPrice: BigDecimal! # unit is underlyingToken/pToken
+  liquidationPrice: BigDecimal! # unit is underlyingToken/pToken
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!
@@ -81,13 +81,13 @@ type CommissionRedemption @entity {
   id: ID! # tx hash
   timestamp: BigInt!
   cycleNumber: BigInt!
-  amountInDAI: BigInt!
+  amountInDAI: BigDecimal!
   txHash: String!
 }
 
 type Investor @entity {
   id: ID! # address
-  sharesBalance: BigInt!
+  sharesBalance: BigDecimal!
   depositWithdrawHistory: [DepositWithdraw!]!
 }
 
@@ -95,7 +95,7 @@ type DepositWithdraw @entity {
   id: ID! # tx hash
   timestamp: BigInt!
   isDeposit: Boolean!
-  amountInDAI: BigInt!
+  amountInDAI: BigDecimal!
   txHash: String!
 }
 
@@ -105,13 +105,13 @@ type Fund @entity {
   cycleNumber: BigInt!
   cyclePhase: CyclePhase!
   startTimeOfCyclePhase: BigInt!
-  totalFundsInDAI: BigInt!
-  kairoPrice: BigInt!
-  kairoTotalSupply: BigInt!
-  sharesPrice: BigInt!
-  sharesTotalSupply: BigInt!
+  totalFundsInDAI: BigDecimal!
+  kairoPrice: BigDecimal!
+  kairoTotalSupply: BigDecimal!
+  sharesPrice: BigDecimal!
+  sharesTotalSupply: BigDecimal!
   sharesPriceHistory: [DataPoint!]!
-  cycleTotalCommission: BigInt!
+  cycleTotalCommission: BigDecimal!
   managers: [Manager!]!
   # upgrade governance related
   hasFinalizedNextVersion: Boolean!
@@ -119,13 +119,13 @@ type Fund @entity {
   nextVersion: String!
   proposers: [String!]!
   candidates: [String!]!
-  forVotes: [BigInt!]!
-  againstVotes: [BigInt!]!
-  upgradeSignalStrength: BigInt!
+  forVotes: [BigDecimal!]! #TODO
+  againstVotes: [BigDecimal!]! #TODO
+  upgradeSignalStrength: BigDecimal!
 }
 
 type DataPoint @entity {
   id: ID! # timestamp
   timestamp: BigInt!
-  value: BigInt!
+  value: BigDecimal!
 }
