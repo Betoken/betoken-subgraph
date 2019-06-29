@@ -267,6 +267,7 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
   history.push(entity.id)
   manager.commissionHistory = history
   manager.lastCommissionRedemption = entity.cycleNumber
+  manager.totalCommissionReceived = manager.totalCommissionReceived.plus(entity.amountInDAI)
   manager.save()
 }
 
