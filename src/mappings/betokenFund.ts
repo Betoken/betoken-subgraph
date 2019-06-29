@@ -293,6 +293,12 @@ export function handleRegister(event: RegisterEvent): void {
   entity.votes = new Array<string>()
   entity.upgradeSignal = false
   entity.save()
+  
+  let fund = Fund.load(Utils.FUND_ID)
+  let managers = fund.managers
+  managers.push(entity.id)
+  fund.managers = managers
+  fund.save()
 
   Utils.updateTotalFunds(event)
 }
