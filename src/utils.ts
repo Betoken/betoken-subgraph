@@ -8,8 +8,8 @@ import {
   DataPoint
 } from "../generated/schema"
 
-import { MiniMeToken } from '../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
-import { KyberNetwork } from "../generated/BetokenProxy/templates/KyberNetwork/KyberNetwork"
+import { MiniMeToken } from '../generated/BetokenProxy/templates/BetokenFund/MiniMeToken'
+import { KyberNetwork } from "../generated/BetokenProxy/templates/BetokenFund/KyberNetwork"
 
 // Constants
 

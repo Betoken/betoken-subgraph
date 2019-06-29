@@ -13,62 +13,19 @@ dataSources:
       apiVersion: 0.0.3
       language: wasm/assemblyscript
       entities:
-        - Manager
-        - BasicOrder
-        - CompoundOrder
-        - FulcrumOrder
         - Fund
-        - DataPoint
       abis:
         - name: BetokenProxy
           file: ./abis/BetokenProxy.json
-        - name: CompoundOrder
-          file: ./abis/CompoundOrder.json
-        - name: PositionToken
-          file: ./abis/PositionToken.json
         - name: MiniMeToken
           file: ./abis/MiniMeToken.json
         - name: BetokenFund
           file: ./abis/BetokenFund.json
-      blockHandlers:
-        - handler: handleBlock
-          filter:
-            kind: call
       eventHandlers:
         - event: UpdatedFundAddress(address)
           handler: handleUpdatedFundAddress
       file: ./src/mappings/BetokenProxy.ts
     templates:
-      - name: CompoundOrder
-        kind: ethereum/contract
-        network: mainnet
-        source:
-          abi: CompoundOrder
-        mapping:
-          kind: ethereum/events
-          apiVersion: 0.0.3
-          language: wasm/assemblyscript
-          entities:
-            - Fund
-          file: ./src/mappings/BetokenFund.ts
-          abis:
-            - name: CompoundOrder
-              file: ./abis/CompoundOrder.json
-      - name: PositionToken
-        kind: ethereum/contract
-        network: mainnet
-        source:
-          abi: PositionToken
-        mapping:
-          kind: ethereum/events
-          apiVersion: 0.0.3
-          language: wasm/assemblyscript
-          entities:
-            - Fund
-          file: ./src/mappings/BetokenFund.ts
-          abis:
-            - name: PositionToken
-              file: ./abis/PositionToken.json
       - name: MiniMeToken
         kind: ethereum/contract
         network: mainnet
@@ -79,29 +36,14 @@ dataSources:
           apiVersion: 0.0.3
           language: wasm/assemblyscript
           entities:
-            - Fund
-          file: ./src/mappings/BetokenFund.ts
+            - Investor
+          file: ./src/mappings/MiniMeToken.ts
           abis:
             - name: MiniMeToken
               file: ./abis/MiniMeToken.json
           eventHandlers:
             - event: Transfer(indexed address,indexed address,uint256)
               handler: handleTokenTransfer
-      - name: KyberNetwork
-        kind: ethereum/contract
-        network: mainnet
-        source:
-          abi: KyberNetwork
-        mapping:
-          kind: ethereum/events
-          apiVersion: 0.0.3
-          language: wasm/assemblyscript
-          entities:
-            - Fund
-          file: ./src/mappings/BetokenFund.ts
-          abis:
-            - name: KyberNetwork
-              file: ./abis/KyberNetwork.json
       - name: BetokenFund
         kind: ethereum/contract
         network: mainnet
@@ -130,7 +72,11 @@ dataSources:
               file: ./abis/MiniMeToken.json
             - name: BetokenFund
               file: ./abis/BetokenFund.json
+            - name: KyberNetwork
+              file: ./abis/KyberNetwork.json
           file: ./src/mappings/BetokenFund.ts
+          blockHandlers:
+            - handler: handleBlock
           eventHandlers:
             - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
               handler: handleChangedPhase

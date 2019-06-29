@@ -113,14 +113,15 @@ type Fund @entity {
   sharesPriceHistory: [DataPoint!]!
   cycleTotalCommission: BigDecimal!
   managers: [Manager!]!
+  lastProcessedBlock: BigInt!
   # upgrade governance related
   hasFinalizedNextVersion: Boolean!
   upgradeVotingActive: Boolean!
   nextVersion: String!
   proposers: [String!]!
   candidates: [String!]!
-  forVotes: [BigDecimal!]! #TODO
-  againstVotes: [BigDecimal!]! #TODO
+  forVotes: [BigDecimal!]!
+  againstVotes: [BigDecimal!]!
   upgradeSignalStrength: BigDecimal!
 }
 
