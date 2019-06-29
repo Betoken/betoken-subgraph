@@ -6,7 +6,7 @@ dataSources:
     name: BetokenProxy
     network: mainnet
     source:
-      address: "0xD1f120cb15E9722D6a727BA274D125C97f5447dB"
+      address: '0x0EeE15bE05a834c4C1b0666b9a9fd17e1708E2a2'
       abi: BetokenProxy
     mapping:
       kind: ethereum/events
@@ -24,28 +24,10 @@ dataSources:
       eventHandlers:
         - event: UpdatedFundAddress(address)
           handler: handleUpdatedFundAddress
-      file: ./src/mappings/BetokenProxy.ts
+      file: ./src/mappings/betokenProxy.ts
     templates:
-      - name: MiniMeToken
-        kind: ethereum/contract
-        network: mainnet
-        source:
-          abi: MiniMeToken
-        mapping:
-          kind: ethereum/events
-          apiVersion: 0.0.3
-          language: wasm/assemblyscript
-          entities:
-            - Investor
-          file: ./src/mappings/MiniMeToken.ts
-          abis:
-            - name: MiniMeToken
-              file: ./abis/MiniMeToken.json
-          eventHandlers:
-            - event: Transfer(indexed address,indexed address,uint256)
-              handler: handleTokenTransfer
-      - name: BetokenFund
-        kind: ethereum/contract
+      - kind: ethereum/contract
+        name: BetokenFund
         network: mainnet
         source:
           abi: BetokenFund
@@ -53,6 +35,7 @@ dataSources:
           kind: ethereum/events
           apiVersion: 0.0.3
           language: wasm/assemblyscript
+          file: ./src/mappings/betokenFund.ts
           entities:
             - Manager
             - BasicOrder
@@ -74,7 +57,6 @@ dataSources:
               file: ./abis/BetokenFund.json
             - name: KyberNetwork
               file: ./abis/KyberNetwork.json
-          file: ./src/mappings/BetokenFund.ts
           blockHandlers:
             - handler: handleBlock
           eventHandlers:
@@ -109,4 +91,22 @@ dataSources:
             - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
               handler: handleVoted
             - event: FinalizedNextVersion(indexed uint256,address)
-              handler: handleFinalizedNextVersion    
+              handler: handleFinalizedNextVersion
+      - kind: ethereum/contract
+        name: MiniMeToken
+        network: mainnet
+        source:
+          abi: MiniMeToken
+        mapping:
+          kind: ethereum/events
+          apiVersion: 0.0.3
+          language: wasm/assemblyscript
+          file: ./src/mappings/miniMeToken.ts
+          entities:
+            - Investor
+          abis:
+            - name: MiniMeToken
+              file: ./abis/MiniMeToken.json
+          eventHandlers:
+            - event: Transfer(indexed address,indexed address,uint256)
+              handler: handleTokenTransfer

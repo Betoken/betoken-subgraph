@@ -61,8 +61,8 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let caller = Manager.load(event.transaction.from.toHex())
   if (caller != null) {
     caller.kairoBalance = caller.kairoBalance.plus(Utils.CALLER_REWARD)
+    caller.save()
   }
-  caller.save()
 
   for (let m: i32 = 0; m < entity.managers.length; m++) {
     let manager = Manager.load(Utils.getArrItem<string>(entity.managers, m))
@@ -93,7 +93,10 @@ export function handleDeposit(event: DepositEvent): void {
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
 
-  investor.depositWithdrawHistory.push(entity.id)
+  investor = Investor.load(event.transaction.from.toHex())
+  let history = investor.depositWithdrawHistory
+  history.push(entity.id)
+  investor.depositWithdrawHistory = history
   investor.save()
 
   Utils.updateTotalFunds(event)
@@ -119,7 +122,10 @@ export function handleWithdraw(event: WithdrawEvent): void {
   entity.txHash = event.transaction.hash.toHex()
   entity.save()
 
-  investor.depositWithdrawHistory.push(entity.id)
+  investor = Investor.load(event.transaction.from.toHex())
+  let history = investor.depositWithdrawHistory
+  history.push(entity.id)
+  investor.depositWithdrawHistory = history
   investor.save()
 
   Utils.updateTotalFunds(event)
@@ -162,9 +168,13 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
 
   let manager = Manager.load(event.params._sender.toHex())
   if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
-    manager.fulcrumOrders.push(id)
+    let orders = manager.fulcrumOrders
+    orders.push(id)
+    manager.fulcrumOrders = orders
   } else {
-    manager.basicOrders.push(id)
+    let orders = manager.basicOrders
+    orders.push(id)
+    manager.basicOrders = orders
   }
   manager.kairoBalance = manager.kairoBalance.minus(Utils.normalize(event.params._stakeInWeis))
   manager.save()
@@ -220,7 +230,9 @@ export function handleCreatedCompoundOrder(
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
-  manager.compoundOrders.push(entity.id)
+  let orders = manager.compoundOrders
+  orders.push(entity.id)
+  manager.compoundOrders = orders
   manager.kairoBalance = manager.kairoBalance.minus(entity.stake)
   manager.save()
 }
@@ -251,7 +263,9 @@ export function handleCommissionPaid(event: CommissionPaidEvent): void {
   entity.save()
 
   let manager = Manager.load(event.params._sender.toHex())
-  manager.commissionHistory.push(entity.id)
+  let history = manager.commissionHistory
+  history.push(entity.id)
+  manager.commissionHistory = history
   manager.lastCommissionRedemption = entity.cycleNumber
   manager.save()
 }
@@ -459,7 +473,9 @@ export function handleBlock(block: EthereumBlock): void {
       dp.timestamp = block.timestamp
       dp.value = manager.kairoBalanceWithStake
       dp.save()
-      manager.kairoBalanceWithStakeHistory.push(dp.id)
+      let history = manager.kairoBalanceWithStakeHistory
+      history.push(dp.id)
+      manager.kairoBalanceWithStakeHistory = history
 
       manager.save()
     }
