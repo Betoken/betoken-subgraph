@@ -216,6 +216,7 @@ export function handleCreatedCompoundOrder(
   entity.buyTime = event.block.timestamp
   entity.sellTime = Utils.ZERO_INT
   entity.isShort = event.params._orderType
+  entity.isSold = false
   entity.orderAddress = event.params._order.toHex()
   entity.outputAmount = Utils.ZERO_DEC
 
@@ -293,14 +294,14 @@ export function handleRegister(event: RegisterEvent): void {
   entity.votes = new Array<string>()
   entity.upgradeSignal = false
   entity.save()
-  
+
+  Utils.updateTotalFunds(event)
+
   let fund = Fund.load(Utils.FUND_ID)
   let managers = fund.managers
   managers.push(entity.id)
   fund.managers = managers
   fund.save()
-
-  Utils.updateTotalFunds(event)
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
@@ -357,6 +358,7 @@ export function handleVoted(event: VotedEvent): void {
     votes.push(Utils.VoteDirection[fund.managerVotes(fund.cycleNumber(), event.params._sender, BigInt.fromI32(i))])
   }
   manager.votes = votes
+  manager.save()
 }
 
 export function handleFinalizedNextVersion(

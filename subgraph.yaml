@@ -104,6 +104,7 @@ dataSources:
           file: ./src/mappings/miniMeToken.ts
           entities:
             - Investor
+            - Fund
           abis:
             - name: MiniMeToken
               file: ./abis/MiniMeToken.json

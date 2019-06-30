@@ -1,13 +1,14 @@
 import { Transfer as TransferEvent } from "../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken"
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
-import { Investor } from "../../generated/schema"
+import { Investor, Fund } from "../../generated/schema"
 import * as Utils from '../utils'
 
 // token transfer handler
 
 export function handleTokenTransfer(event: TransferEvent): void {
   let contract = MiniMeToken.bind(event.address)
-  if (contract.symbol() === "BTKS") {
+  let fund = Fund.load(Utils.FUND_ID)
+  if (contract.symbol() === "BTKS" && event.params._to.toHex() !== fund.address && event.params._from.toHex() !== fund.address) {
     let to = event.params._to
     let investor = Investor.load(to.toHex())
     if (investor == null) {
