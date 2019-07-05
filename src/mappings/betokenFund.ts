@@ -34,7 +34,7 @@ import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenP
 import { PositionToken } from '../../generated/BetokenProxy/templates/BetokenFund/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
 
-import { BigInt, Address, BigDecimal, EthereumBlock } from '@graphprotocol/graph-ts'
+import { BigInt, Address, BigDecimal, EthereumBlock, log } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
 
@@ -134,7 +134,12 @@ export function handleWithdraw(event: WithdrawEvent): void {
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
   let tokenContract = MiniMeToken.bind(event.params._tokenAddress)
-  let decimals: i32 = tokenContract.decimals()
+  let decimals: i32
+  if (event.params._tokenAddress.toHex() === Utils.ETH_ADDR) {
+    decimals = 18
+  } else {
+    decimals = tokenContract.decimals()
+  }
   if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     let entity = new FulcrumOrder(id);
     entity.isShort = Utils.assetPTokenAddressToInfo(event.params._tokenAddress.toHex()).type;

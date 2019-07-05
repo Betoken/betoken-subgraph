@@ -7,14 +7,15 @@ import {
 import {
   Fund
 } from "../../generated/schema"
-import { 
+import {
   MiniMeToken as MiniMeTokenTemplate,
   BetokenFund as BetokenFundTemplate
 } from '../../generated/BetokenProxy/templates'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
-import { BigDecimal } from '@graphprotocol/graph-ts'
+import { BigDecimal, Address } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
+import { Manager } from "../../generated/schema";
 
 // init fund handler
 
@@ -38,6 +39,34 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
     entity.sharesPriceHistory = new Array<string>()
     entity.cycleTotalCommission = Utils.ZERO_DEC
     entity.managers = new Array<string>()
+    entity.cycleNumber = fund.cycleNumber()
+    entity.cyclePhase = Utils.CyclePhase[fund.cyclePhase()]
+
+    for (let m = 0; m < Utils.INITIAL_MANAGERS.length; m++) {
+      let managerAddress = Utils.INITIAL_MANAGERS[m];
+      if (Manager.load(managerAddress) == null) {
+        let manager = new Manager(managerAddress)
+        manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(managerAddress)))
+        manager.kairoBalanceWithStake = manager.kairoBalance
+        manager.kairoBalanceWithStakeHistory = new Array<string>()
+        manager.baseStake = manager.kairoBalance
+        manager.riskTaken = Utils.ZERO_DEC
+        manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
+        manager.lastCommissionRedemption = Utils.ZERO_INT
+        manager.basicOrders = new Array<string>()
+        manager.fulcrumOrders = new Array<string>()
+        manager.compoundOrders = new Array<string>()
+        manager.commissionHistory = new Array<string>()
+        manager.votes = new Array<string>()
+        manager.upgradeSignal = false
+        manager.save()
+
+        let managers = entity.managers
+        managers.push(manager.id)
+        entity.managers = managers
+        entity.save()
+      }
+    }
 
     MiniMeTokenTemplate.create(fund.shareTokenAddr())
   }

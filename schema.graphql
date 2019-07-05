@@ -11,7 +11,6 @@ enum VoteDirection {
 
 type Manager @entity {
   id: ID! # address
-  fundID: String!
   kairoBalance: BigDecimal!
   kairoBalanceWithStake: BigDecimal!
   kairoBalanceWithStakeHistory: [DataPoint!]!
@@ -31,7 +30,6 @@ type Manager @entity {
 type BasicOrder @entity {
   id: ID! # index in userInvestments[user] array + cycleNumber
   idx: BigInt!
-  owner: String!
   tokenAddress: String!
   cycleNumber: BigInt!
   stake: BigDecimal!
@@ -46,7 +44,6 @@ type BasicOrder @entity {
 type CompoundOrder @entity {
   id: ID! # index in userCompoundOrders[user] array + cycleNumber
   idx: BigInt!
-  owner: String!
   tokenAddress: String!
   cycleNumber: BigInt!
   stake: BigDecimal!
@@ -68,7 +65,6 @@ type CompoundOrder @entity {
 type FulcrumOrder @entity {
   id: ID! # index in userInvestments[user] array + cycleNumber
   idx: BigInt!
-  owner: String!
   tokenAddress: String!
   cycleNumber: BigInt!
   stake: BigDecimal!

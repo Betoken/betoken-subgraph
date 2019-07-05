@@ -6,7 +6,7 @@ dataSources:
     name: BetokenProxy
     network: mainnet
     source:
-      address: '0x784cc5bB9AD74cbb623b2D3AAfAf3FAEc5d87344'
+      address: '0xC7CbB403D1722EE3E4ae61f452Dc36d71E8800DE'
       abi: BetokenProxy
     mapping:
       kind: ethereum/events
@@ -14,6 +14,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Fund
+        - Manager
       abis:
         - name: BetokenProxy
           file: ./abis/BetokenProxy.json
