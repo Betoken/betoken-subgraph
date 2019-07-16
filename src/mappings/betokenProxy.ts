@@ -37,6 +37,8 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
     }
     entity.sharesTotalSupply = Utils.normalize(shares.totalSupply())
     entity.sharesPriceHistory = new Array<string>()
+    entity.aum = entity.totalFundsInDAI
+    entity.aumHistory = new Array<string>()
     entity.cycleTotalCommission = Utils.ZERO_DEC
     entity.managers = new Array<string>()
     entity.cycleNumber = fund.cycleNumber()

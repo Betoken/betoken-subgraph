@@ -385,6 +385,8 @@ export function handleBlock(block: EthereumBlock): void {
     }
     fund.lastProcessedBlock = block.number
     fund.save()
+
+    let tentativeKairoTotalSupply = Utils.ZERO_DEC
     for (let m = 0; m < fund.managers.length; m++) {
       let manager = Manager.load(Utils.getArrItem<string>(fund.managers, m))
       let riskTaken = Utils.ZERO_DEC
@@ -492,6 +494,35 @@ export function handleBlock(block: EthereumBlock): void {
       manager.kairoBalanceWithStakeHistory = history
 
       manager.save()
+
+      tentativeKairoTotalSupply = tentativeKairoTotalSupply.plus(manager.kairoBalanceWithStake)
     }
+
+    // record AUM
+    fund.aum = fund.totalFundsInDAI.times(tentativeKairoTotalSupply).div(fund.kairoTotalSupply)
+
+    let aumDP = new DataPoint('aumHistory-' + block.number.toString())
+    aumDP.timestamp = block.timestamp
+    aumDP.value = fund.aum
+    aumDP.save()
+    let aumHistory = fund.aumHistory
+    aumHistory.push(aumDP.id)
+    fund.aumHistory = aumHistory
+
+    // record Betoken Shares price
+    if (fund.sharesTotalSupply.equals(Utils.ZERO_DEC)) {
+      fund.sharesPrice = Utils.PRECISION
+    } else {
+      fund.sharesPrice = fund.aum.div(fund.sharesTotalSupply)
+    }  
+    let dp = new DataPoint('sharesPriceHistory-' + block.number.toString())
+    dp.timestamp = block.timestamp
+    dp.value = fund.sharesPrice
+    dp.save()
+    let sharesPriceHistory = fund.sharesPriceHistory
+    sharesPriceHistory.push(dp.id)
+    fund.sharesPriceHistory = sharesPriceHistory
+
+    fund.save()
   }
 }

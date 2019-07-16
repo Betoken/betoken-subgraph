@@ -53,19 +53,7 @@ export function updateTotalFunds(event: EthereumEvent): void {
   fund.totalFundsInDAI = normalize(fundContract.totalFundsInDAI())
   fund.kairoPrice = normalize(fundContract.kairoPrice())
   fund.kairoTotalSupply = normalize(kairo.totalSupply())
-  if (shares.totalSupply().equals(ZERO_INT)) {
-    fund.sharesPrice = PRECISION
-  } else {
-    fund.sharesPrice = fund.totalFundsInDAI.div(normalize(shares.totalSupply()))
-  }
   fund.sharesTotalSupply = normalize(shares.totalSupply())
-
-  let dp = new DataPoint('sharesPriceHistory-' + event.transaction.hash.toHex() + "-" + event.logIndex.toString())
-  dp.timestamp = event.block.timestamp
-  dp.value = fund.sharesPrice
-  dp.save()
-
-  fund.sharesPriceHistory.push(dp.id)
   fund.save()
 }
 

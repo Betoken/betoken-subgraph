@@ -112,6 +112,8 @@ type Fund @entity {
   sharesPrice: BigDecimal!
   sharesTotalSupply: BigDecimal!
   sharesPriceHistory: [DataPoint!]!
+  aum: BigDecimal!
+  aumHistory: [DataPoint!]!
   cycleTotalCommission: BigDecimal!
   managers: [Manager!]!
   lastProcessedBlock: BigInt!
