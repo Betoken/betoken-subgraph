@@ -61,6 +61,7 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
         manager.commissionHistory = new Array<string>()
         manager.votes = new Array<string>()
         manager.upgradeSignal = false
+        manager.totalCommissionReceived = Utils.ZERO_DEC
         manager.save()
 
         let managers = entity.managers

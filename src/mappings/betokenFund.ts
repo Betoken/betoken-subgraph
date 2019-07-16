@@ -298,6 +298,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.commissionHistory = new Array<string>()
   entity.votes = new Array<string>()
   entity.upgradeSignal = false
+  entity.totalCommissionReceived = Utils.ZERO_DEC
   entity.save()
 
   Utils.updateTotalFunds(event)
