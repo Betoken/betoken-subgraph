@@ -47,15 +47,13 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = Utils.CyclePhase[event.params._newPhase.toI32()]
   entity.startTimeOfCyclePhase = event.block.timestamp
-  if (!fund.hasFinalizedNextVersion()) {
-    entity.candidates.length = 0
-    entity.proposers.length = 0
-    entity.forVotes.length = 0
-    entity.againstVotes.length = 0
-    entity.upgradeVotingActive = false
-    entity.upgradeSignalStrength = Utils.ZERO_DEC
-    entity.nextVersion = ""
-  }
+  entity.candidates.length = 0
+  entity.proposers.length = 0
+  entity.forVotes.length = 0
+  entity.againstVotes.length = 0
+  entity.upgradeVotingActive = fund.upgradeVotingActive()
+  entity.upgradeSignalStrength = Utils.normalize(fund.upgradeSignalStrength(entity.cycleNumber))
+  entity.nextVersion = fund.nextVersion().toHex()
   entity.save()
 
   let caller = Manager.load(event.transaction.from.toHex())
@@ -69,6 +67,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     manager.baseStake = manager.kairoBalance
     manager.riskTaken = Utils.ZERO_DEC
     manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
+    manager.upgradeSignal = false;
     manager.save()
   }
 }
