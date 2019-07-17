@@ -34,7 +34,7 @@ import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenP
 import { PositionToken } from '../../generated/BetokenProxy/templates/BetokenFund/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
 
-import { BigInt, Address, BigDecimal, EthereumBlock, log } from '@graphprotocol/graph-ts'
+import { BigInt, Address, BigDecimal, EthereumBlock } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
 
@@ -129,10 +129,10 @@ export function handleWithdraw(event: WithdrawEvent): void {
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
-  let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
+  let id = event.params._sender.toHex() + '-' + event.params._cycleNumber.toString() + '-' + event.params._id.toString()
   let tokenContract = MiniMeToken.bind(event.params._tokenAddress)
   let decimals: i32
-  if (event.params._tokenAddress.toHex() === Utils.ETH_ADDR) {
+  if (Utils.ETH_ADDR.includes(event.params._tokenAddress.toHex())) {
     decimals = 18
   } else {
     decimals = tokenContract.decimals()
@@ -183,7 +183,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
 }
 
 export function handleSoldInvestment(event: SoldInvestmentEvent): void {
-  let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
+  let id = event.params._sender.toHex() + '-' + event.params._cycleNumber.toString() + '-' + event.params._id.toString()
   if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     let entity = FulcrumOrder.load(id);
     entity.isSold = true
@@ -208,7 +208,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
 export function handleCreatedCompoundOrder(
   event: CreatedCompoundOrderEvent
 ): void {
-  let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
+  let id = event.params._sender.toHex() + '-' + event.params._cycleNumber.toString() + '-' + event.params._id.toString()
   let entity = new CompoundOrder(id)
   entity.idx = event.params._id
   entity.cycleNumber = event.params._cycleNumber
@@ -241,7 +241,7 @@ export function handleCreatedCompoundOrder(
 }
 
 export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
-  let id = event.params._id.toString() + '-' + event.params._cycleNumber.toString()
+  let id = event.params._sender.toHex() + '-' + event.params._cycleNumber.toString() + '-' + event.params._id.toString()
   let entity = CompoundOrder.load(id)
   entity.isSold = true
   entity.sellTime = event.block.timestamp
@@ -385,7 +385,7 @@ export function handleBlock(block: EthereumBlock): void {
     fund.save()
 
     let tentativeKairoTotalSupply = Utils.ZERO_DEC
-    if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase === Utils.CyclePhase[1]) {
+    if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
       for (let m = 0; m < fund.managers.length; m++) {
         let manager = Manager.load(Utils.getArrItem<string>(fund.managers, m))
         let riskTaken = Utils.ZERO_DEC
@@ -484,13 +484,15 @@ export function handleBlock(block: EthereumBlock): void {
 
         // total stake value
         manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
-        let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
-        dp.timestamp = block.timestamp
-        dp.value = manager.kairoBalanceWithStake
-        dp.save()
-        let history = manager.kairoBalanceWithStakeHistory
-        history.push(dp.id)
-        manager.kairoBalanceWithStakeHistory = history
+        if (!totalStakeValue.equals(Utils.ZERO_DEC)) {
+          let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
+          dp.timestamp = block.timestamp
+          dp.value = manager.kairoBalanceWithStake
+          dp.save()
+          let history = manager.kairoBalanceWithStakeHistory
+          history.push(dp.id)
+          manager.kairoBalanceWithStakeHistory = history
+        }
 
         manager.save()
 

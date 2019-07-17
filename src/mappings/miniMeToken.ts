@@ -8,7 +8,7 @@ import * as Utils from '../utils'
 export function handleTokenTransfer(event: TransferEvent): void {
   let contract = MiniMeToken.bind(event.address)
   let fund = Fund.load(Utils.FUND_ID)
-  if (contract.symbol() === "BTKS" && event.params._to.toHex() !== fund.address && event.params._from.toHex() !== fund.address) {
+  if (contract.symbol().includes("BTKS")) {
     let to = event.params._to
     let investor = Investor.load(to.toHex())
     if (investor == null) {
@@ -17,10 +17,18 @@ export function handleTokenTransfer(event: TransferEvent): void {
       investor.depositWithdrawHistory = new Array<string>()
     }
     // update balances
-    let from = Investor.load(event.params._from.toHex())
-    from.sharesBalance = Utils.normalize(contract.balanceOf(event.params._from))
-    from.save()
     investor.sharesBalance = Utils.normalize(contract.balanceOf(to))
     investor.save()
+
+    let from = event.params._from
+    let sender = Investor.load(from.toHex())
+    if (sender == null) {
+      // create new investor entity
+      sender = new Investor(from.toHex())
+      sender.depositWithdrawHistory = new Array<string>()
+    }
+    // update balances
+    sender.sharesBalance = Utils.normalize(contract.balanceOf(from))
+    sender.save()
   }
 }

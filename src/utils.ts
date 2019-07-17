@@ -34,14 +34,38 @@ export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 // Helpers
 
-export function isFulcrumTokenAddress(_tokenAddress: string): boolean {
-  let result = PTOKENS.findIndex((x: pToken) => x.pTokens.findIndex((y: pTokenInfo) => y.address === _tokenAddress) != -1)
-  return result != -1
+export function assetPTokenAddressToPTokenIndex(_addr: string): i32 {
+  let idx = -1
+  for (let j = 0; j < PTOKENS.length; j++) {
+    let x: pToken = PTOKENS[j]
+    for (let k = 0; k < x.pTokens.length; k++) {
+      let y: pTokenInfo = x.pTokens[k]
+      if (y.address.includes(_addr)) {
+        idx = j
+        break
+      }
+    }
+    if (idx > -1) {
+      break
+    }
+  }
+  return idx
 }
 
+export function isFulcrumTokenAddress(_tokenAddress: string): boolean {
+  return assetPTokenAddressToPTokenIndex(_tokenAddress) != -1
+}
+
+// precondition: _addr is the address of a pToken
 export function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
-  let pTokens = PTOKENS[PTOKENS.findIndex((x: pToken) => x.pTokens.findIndex((y: pTokenInfo) => y.address === _addr) != -1)].pTokens
-  return pTokens[pTokens.findIndex((y: pTokenInfo) => y.address === _addr)]
+  let pTokens = PTOKENS[assetPTokenAddressToPTokenIndex(_addr)].pTokens
+  for (let i = 0; i < pTokens.length; i++) {
+    let info: pTokenInfo = pTokens[i]
+    if (info.address.includes(_addr)) {
+      return info
+    }
+  }
+  return null
 }
 
 export function updateTotalFunds(event: EthereumEvent): void {
@@ -84,8 +108,8 @@ export function getArrItem<T>(arr: Array<T>, idx: i32): T {
 export function getPriceOfToken(tokenAddress: Address): BigDecimal {
   let kyber = KyberNetwork.bind(KYBER_ADDR)
   let token = MiniMeToken.bind(tokenAddress)
-  let decimals = 0
-  if (tokenAddress.toHex() === ETH_ADDR) {
+  let decimals: i32
+  if (ETH_ADDR.includes(tokenAddress.toHex())) {
     decimals = 18
   } else {
     decimals = token.decimals()
