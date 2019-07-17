@@ -84,7 +84,12 @@ export function getArrItem<T>(arr: Array<T>, idx: i32): T {
 export function getPriceOfToken(tokenAddress: Address): BigDecimal {
   let kyber = KyberNetwork.bind(KYBER_ADDR)
   let token = MiniMeToken.bind(tokenAddress)
-  let decimals = token.decimals()
+  let decimals = 0
+  if (tokenAddress.toHex() === ETH_ADDR) {
+    decimals = 18
+  } else {
+    decimals = token.decimals()
+  }
   let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(decimals))
   return normalize(result.value1)
 }

@@ -60,8 +60,6 @@ dataSources:
               file: ./abis/KyberNetwork.json
           blockHandlers:
             - handler: handleBlock
-              filter:
-                kind: call
           eventHandlers:
             - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
               handler: handleChangedPhase
