@@ -13,7 +13,6 @@ type Manager @entity {
   id: ID! # address
   kairoBalance: BigDecimal!
   kairoBalanceWithStake: BigDecimal!
-  kairoBalanceWithStakeHistory: [DataPoint!]!
   baseStake: BigDecimal!
   riskTaken: BigDecimal!
   riskThreshold: BigDecimal!
@@ -107,13 +106,13 @@ type Fund @entity {
   cyclePhase: CyclePhase!
   startTimeOfCyclePhase: BigInt!
   totalFundsInDAI: BigDecimal!
+  totalFundsHistory: [DataPoint!]!
   kairoPrice: BigDecimal!
   kairoTotalSupply: BigDecimal!
   sharesPrice: BigDecimal!
   sharesTotalSupply: BigDecimal!
   sharesPriceHistory: [DataPoint!]!
   aum: BigDecimal!
-  aumHistory: [DataPoint!]!
   cycleTotalCommission: BigDecimal!
   managers: [Manager!]!
   lastProcessedBlock: BigInt!

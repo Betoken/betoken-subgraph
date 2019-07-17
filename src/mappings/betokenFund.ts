@@ -52,7 +52,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   entity.forVotes.length = 0
   entity.againstVotes.length = 0
   entity.upgradeVotingActive = fund.upgradeVotingActive()
-  entity.upgradeSignalStrength = Utils.normalize(fund.upgradeSignalStrength(entity.cycleNumber))
+  entity.upgradeSignalStrength = Utils.ZERO_DEC
   entity.nextVersion = fund.nextVersion().toHex()
   entity.save()
 
@@ -68,6 +68,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     manager.riskTaken = Utils.ZERO_DEC
     manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
     manager.upgradeSignal = false;
+    manager.votes.length = 0;
     manager.save()
   }
 }
@@ -91,7 +92,7 @@ export function handleDeposit(event: DepositEvent): void {
 
   let fund = BetokenFund.bind(event.address)
   let shares = MiniMeToken.bind(fund.shareTokenAddr())
-  investor.sharesBalance = Utils.normalize(shares.balanceOf(Address.fromString(investor.id)))
+  investor.sharesBalance = Utils.normalize(shares.balanceOfAt(Address.fromString(investor.id), event.block.number))
   let history = investor.depositWithdrawHistory
   history.push(entity.id)
   investor.depositWithdrawHistory = history
@@ -119,7 +120,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   let fund = BetokenFund.bind(event.address)
   let shares = MiniMeToken.bind(fund.shareTokenAddr())
-  investor.sharesBalance = Utils.normalize(shares.balanceOf(Address.fromString(investor.id)))
+  investor.sharesBalance = Utils.normalize(shares.balanceOfAt(Address.fromString(investor.id), event.block.number))
   let history = investor.depositWithdrawHistory
   history.push(entity.id)
   investor.depositWithdrawHistory = history
@@ -284,7 +285,6 @@ export function handleRegister(event: RegisterEvent): void {
   let entity = new Manager(event.params._manager.toHex())
   entity.kairoBalance = Utils.normalize(event.params._kairoReceived)
   entity.kairoBalanceWithStake = entity.kairoBalance
-  entity.kairoBalanceWithStakeHistory = new Array<string>()
   entity.baseStake = entity.kairoBalance
   entity.riskTaken = Utils.ZERO_DEC
   entity.riskThreshold = entity.baseStake.times(Utils.RISK_THRESHOLD_TIME)
@@ -311,6 +311,11 @@ export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
   let manager = Manager.load(event.params._sender.toHex())
   manager.upgradeSignal = event.params._inSupport
   manager.save()
+
+  let fund = Fund.load(Utils.FUND_ID)
+  let fundContract = BetokenFund.bind(event.address)
+  fund.upgradeSignalStrength = Utils.normalize(fundContract.upgradeSignalStrength(fund.cycleNumber))
+  fund.save()
 }
 
 export function handleDeveloperInitiatedUpgrade(
@@ -484,15 +489,6 @@ export function handleBlock(block: EthereumBlock): void {
 
         // total stake value
         manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
-        if (!totalStakeValue.equals(Utils.ZERO_DEC)) {
-          let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
-          dp.timestamp = block.timestamp
-          dp.value = manager.kairoBalanceWithStake
-          dp.save()
-          let history = manager.kairoBalanceWithStakeHistory
-          history.push(dp.id)
-          manager.kairoBalanceWithStakeHistory = history
-        }
 
         manager.save()
 
@@ -505,27 +501,12 @@ export function handleBlock(block: EthereumBlock): void {
     // record AUM
     fund.aum = fund.totalFundsInDAI.times(tentativeKairoTotalSupply).div(fund.kairoTotalSupply)
 
-    let aumDP = new DataPoint('aumHistory-' + block.number.toString())
-    aumDP.timestamp = block.timestamp
-    aumDP.value = fund.aum
-    aumDP.save()
-    let aumHistory = fund.aumHistory
-    aumHistory.push(aumDP.id)
-    fund.aumHistory = aumHistory
-
     // record Betoken Shares price
     if (fund.sharesTotalSupply.equals(Utils.ZERO_DEC)) {
       fund.sharesPrice = Utils.PRECISION
     } else {
       fund.sharesPrice = fund.aum.div(fund.sharesTotalSupply)
     }
-    let dp = new DataPoint('sharesPriceHistory-' + block.number.toString())
-    dp.timestamp = block.timestamp
-    dp.value = fund.sharesPrice
-    dp.save()
-    let sharesPriceHistory = fund.sharesPriceHistory
-    sharesPriceHistory.push(dp.id)
-    fund.sharesPriceHistory = sharesPriceHistory
 
     fund.save()
   }

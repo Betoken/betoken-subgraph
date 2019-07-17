@@ -25,6 +25,7 @@ VoteDirection.push('AGAINST')
 import { PTOKENS, pTokenInfo, pToken } from './fulcrum_tokens'
 export let ZERO_INT = BigInt.fromI32(0)
 export let ZERO_DEC = BigDecimal.fromString('0')
+export let INITIAL_KRO_PRICE = BigDecimal.fromString('2.5')
 export let PRECISION = new BigDecimal(tenPow(18))
 export let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
 export let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
@@ -78,6 +79,29 @@ export function updateTotalFunds(event: EthereumEvent): void {
   fund.kairoPrice = normalize(fundContract.kairoPrice())
   fund.kairoTotalSupply = normalize(kairo.totalSupply())
   fund.sharesTotalSupply = normalize(shares.totalSupply())
+
+  let aumDP = new DataPoint('totalFundsHistory-' + event.block.number.toString())
+  aumDP.timestamp = event.block.timestamp
+  aumDP.value = fund.totalFundsInDAI
+  aumDP.save()
+  let aumHistory = fund.totalFundsHistory
+  aumHistory.push(aumDP.id)
+  fund.totalFundsHistory = aumHistory
+
+  let dp = new DataPoint('sharesPriceHistory-' + event.block.number.toString())
+  dp.timestamp = event.block.timestamp
+  let sharesPrice: BigDecimal
+  if (fund.sharesTotalSupply.equals(ZERO_DEC)) {
+    sharesPrice = PRECISION
+  } else {
+    sharesPrice = fund.aum.div(fund.sharesTotalSupply)
+  }
+  dp.value = sharesPrice
+  dp.save()
+  let sharesPriceHistory = fund.sharesPriceHistory
+  sharesPriceHistory.push(dp.id)
+  fund.sharesPriceHistory = sharesPriceHistory
+
   fund.save()
 }
 

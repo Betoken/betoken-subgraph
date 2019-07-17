@@ -27,30 +27,25 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
     let fund = BetokenFund.bind(event.params._newFundAddr)
     let kairo = MiniMeToken.bind(fund.controlTokenAddr())
     let shares = MiniMeToken.bind(fund.shareTokenAddr())
-    entity.totalFundsInDAI = Utils.normalize(fund.totalFundsInDAI())
-    entity.kairoPrice = Utils.normalize(fund.kairoPrice())
-    entity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
-    if (shares.totalSupply().equals(Utils.ZERO_INT)) {
-      entity.sharesPrice = Utils.PRECISION
-    } else {
-      entity.sharesPrice = entity.totalFundsInDAI.div(Utils.normalize(shares.totalSupply()))
-    }
-    entity.sharesTotalSupply = Utils.normalize(shares.totalSupply())
+    entity.totalFundsInDAI = Utils.ZERO_DEC
+    entity.kairoPrice = Utils.INITIAL_KRO_PRICE
+    entity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+    entity.sharesPrice = Utils.PRECISION
+    entity.sharesTotalSupply = Utils.normalize(shares.totalSupplyAt(event.block.number))
     entity.sharesPriceHistory = new Array<string>()
-    entity.aum = entity.totalFundsInDAI
-    entity.aumHistory = new Array<string>()
+    entity.aum = Utils.ZERO_DEC
+    entity.totalFundsHistory = new Array<string>()
     entity.cycleTotalCommission = Utils.ZERO_DEC
     entity.managers = new Array<string>()
-    entity.cycleNumber = fund.cycleNumber()
-    entity.cyclePhase = Utils.CyclePhase[fund.cyclePhase()]
+    entity.cycleNumber = Utils.ZERO_INT
+    entity.cyclePhase = Utils.CyclePhase[1]
 
     for (let m = 0; m < Utils.INITIAL_MANAGERS.length; m++) {
       let managerAddress = Utils.INITIAL_MANAGERS[m];
       if (Manager.load(managerAddress) == null) {
         let manager = new Manager(managerAddress)
-        manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(managerAddress)))
+        manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(Address.fromString(managerAddress), event.block.number))
         manager.kairoBalanceWithStake = manager.kairoBalance
-        manager.kairoBalanceWithStakeHistory = new Array<string>()
         manager.baseStake = manager.kairoBalance
         manager.riskTaken = Utils.ZERO_DEC
         manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
