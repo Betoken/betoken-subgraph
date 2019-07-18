@@ -31,7 +31,6 @@ import {
 } from "../../generated/schema"
 
 import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/BetokenFund/CompoundOrder'
-import { PositionToken } from '../../generated/BetokenProxy/templates/BetokenFund/PositionToken'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
 
 import { BigInt, Address, BigDecimal, EthereumBlock } from '@graphprotocol/graph-ts'
@@ -58,8 +57,13 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
 
   let caller = Manager.load(event.transaction.from.toHex())
   if (caller != null) {
-    caller.kairoBalance = caller.kairoBalance.plus(Utils.CALLER_REWARD)
+    let fund = BetokenFund.bind(event.address)
+    let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+    caller.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.transaction.from, event.block.number))
     caller.save()
+    let fundEntity = Fund.load(Utils.FUND_ID)
+    fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+    fundEntity.save()
   }
 
   for (let m: i32 = 0; m < entity.managers.length; m++) {
@@ -150,9 +154,8 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.buyTime = event.block.timestamp
     entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
-    let pToken = PositionToken.bind(event.params._tokenAddress)
-    entity.sellPrice = Utils.normalize(pToken.tokenPrice())
-    entity.liquidationPrice = Utils.normalize(pToken.liquidationPrice())
+    entity.sellPrice = Utils.pTokenPrice(event.params._tokenAddress)
+    entity.liquidationPrice = Utils.pTokenLiquidationPrice(event.params._tokenAddress)
     entity.save()
   } else {
     let entity = new BasicOrder(id);
@@ -179,8 +182,13 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     orders.push(id)
     manager.basicOrders = orders
   }
-  manager.kairoBalance = manager.kairoBalance.minus(Utils.normalize(event.params._stakeInWeis))
+  let fundContract = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
+  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
   manager.save()
+  let fund = Fund.load(Utils.FUND_ID)
+  fund.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fund.save()
 }
 
 export function handleSoldInvestment(event: SoldInvestmentEvent): void {
@@ -202,8 +210,13 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   Utils.updateTotalFunds(event)
 
   let manager = Manager.load(event.params._sender.toHex())
-  manager.kairoBalance = manager.kairoBalance.plus(Utils.normalize(event.params._receivedKairo))
+  let fund = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
   manager.save()
+  let fundEntity = Fund.load(Utils.FUND_ID)
+  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fundEntity.save()
 }
 
 export function handleCreatedCompoundOrder(
@@ -237,8 +250,13 @@ export function handleCreatedCompoundOrder(
   let orders = manager.compoundOrders
   orders.push(entity.id)
   manager.compoundOrders = orders
-  manager.kairoBalance = manager.kairoBalance.minus(entity.stake)
+  let fund = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
   manager.save()
+  let fundEntity = Fund.load(Utils.FUND_ID)
+  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fundEntity.save()
 }
 
 export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
@@ -252,8 +270,13 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   Utils.updateTotalFunds(event)
 
   let manager = Manager.load(event.params._sender.toHex())
-  manager.kairoBalance = manager.kairoBalance.plus(Utils.normalize(event.params._receivedKairo))
+  let fund = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
   manager.save()
+  let fundEntity = Fund.load(Utils.FUND_ID)
+  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fundEntity.save()
 }
 
 export function handleCommissionPaid(event: CommissionPaidEvent): void {
@@ -304,6 +327,9 @@ export function handleRegister(event: RegisterEvent): void {
   let managers = fund.managers
   managers.push(entity.id)
   fund.managers = managers
+  let fundContract = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
+  fund.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
   fund.save()
 }
 
@@ -427,9 +453,8 @@ export function handleBlock(block: EthereumBlock): void {
           if (order.cycleNumber.equals(fund.cycleNumber)) {
             // update price
             if (!order.isSold) {
-              let pToken = PositionToken.bind(Address.fromString(order.tokenAddress))
-              order.sellPrice = Utils.normalize(pToken.tokenPrice())
-              order.liquidationPrice = Utils.normalize(pToken.liquidationPrice())
+              order.sellPrice = Utils.pTokenPrice(Address.fromString(order.tokenAddress))
+              order.liquidationPrice = Utils.pTokenLiquidationPrice(Address.fromString(order.tokenAddress))
               order.save()
               // record stake value
               if (order.buyPrice.equals(Utils.ZERO_DEC)) {

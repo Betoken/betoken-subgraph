@@ -10,6 +10,7 @@ import {
 
 import { MiniMeToken } from '../generated/BetokenProxy/templates/BetokenFund/MiniMeToken'
 import { KyberNetwork } from "../generated/BetokenProxy/templates/BetokenFund/KyberNetwork"
+import { PositionToken } from '../generated/BetokenProxy/templates/BetokenFund/PositionToken'
 
 // Constants
 
@@ -67,6 +68,36 @@ export function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
     }
   }
   return null
+}
+
+export function pTokenPrice(_addr: Address): BigDecimal {
+  let token = PositionToken.bind(_addr)
+  let priceInUnderlying = normalize(token.tokenPrice())
+  let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
+  if (!tokenInfo.type) {
+    // long token, underlying is DAI
+    return priceInUnderlying
+  } else {
+    // short token, underlying is token
+    let underlying = token.loanTokenAddress()
+    let underlyingPrice = getPriceOfToken(underlying)
+    return priceInUnderlying.times(underlyingPrice)
+  }
+}
+
+export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
+  let token = PositionToken.bind(_addr)
+  let priceInUnderlying = normalize(token.liquidationPrice())
+  let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
+  if (!tokenInfo.type) {
+    // long token, underlying is DAI
+    return priceInUnderlying
+  } else {
+    // short token, underlying is token
+    let underlying = token.loanTokenAddress()
+    let underlyingPrice = getPriceOfToken(underlying)
+    return priceInUnderlying.times(underlyingPrice)
+  }
 }
 
 export function updateTotalFunds(event: EthereumEvent): void {
