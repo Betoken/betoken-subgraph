@@ -59,10 +59,10 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   if (caller != null) {
     let fund = BetokenFund.bind(event.address)
     let kairo = MiniMeToken.bind(fund.controlTokenAddr())
-    caller.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.transaction.from, event.block.number))
+    caller.kairoBalance = Utils.normalize(kairo.balanceOf(event.transaction.from))
     caller.save()
     let fundEntity = Fund.load(Utils.FUND_ID)
-    fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+    fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
     fundEntity.save()
   }
 
@@ -72,6 +72,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     manager.riskTaken = Utils.ZERO_DEC
     manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
     manager.upgradeSignal = false;
+    manager.votes.length = 0;
     manager.save()
   }
 }
@@ -183,10 +184,10 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   }
   let fundContract = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
-  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
+  manager.kairoBalance = Utils.normalize(kairo.balanceOf(event.params._sender))
   manager.save()
   let fund = Fund.load(Utils.FUND_ID)
-  fund.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
   fund.save()
 }
 
@@ -211,10 +212,10 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
   let manager = Manager.load(event.params._sender.toHex())
   let fund = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())
-  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
+  manager.kairoBalance = Utils.normalize(kairo.balanceOf(event.params._sender))
   manager.save()
   let fundEntity = Fund.load(Utils.FUND_ID)
-  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
   fundEntity.save()
 }
 
@@ -251,10 +252,10 @@ export function handleCreatedCompoundOrder(
   manager.compoundOrders = orders
   let fund = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())
-  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
+  manager.kairoBalance = Utils.normalize(kairo.balanceOf(event.params._sender))
   manager.save()
   let fundEntity = Fund.load(Utils.FUND_ID)
-  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
   fundEntity.save()
 }
 
@@ -271,10 +272,10 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   let manager = Manager.load(event.params._sender.toHex())
   let fund = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())
-  manager.kairoBalance = Utils.normalize(kairo.balanceOfAt(event.params._sender, event.block.number))
+  manager.kairoBalance = Utils.normalize(kairo.balanceOf(event.params._sender))
   manager.save()
   let fundEntity = Fund.load(Utils.FUND_ID)
-  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
   fundEntity.save()
 }
 
@@ -329,7 +330,7 @@ export function handleRegister(event: RegisterEvent): void {
   fund.managers = managers
   let fundContract = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
-  fund.kairoTotalSupply = Utils.normalize(kairo.totalSupplyAt(event.block.number))
+  fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
   fund.save()
 }
 
