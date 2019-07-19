@@ -28,10 +28,11 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
     let kairo = MiniMeToken.bind(fund.controlTokenAddr())
     let shares = MiniMeToken.bind(fund.shareTokenAddr())
     entity.totalFundsInDAI = Utils.normalize(fund.totalFundsInDAI())
+    entity.totalFundsAtPhaseStart = entity.totalFundsInDAI
     entity.kairoPrice = Utils.normalize(fund.kairoPrice())
     entity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
     if (shares.totalSupply().equals(Utils.ZERO_INT)) {
-      entity.sharesPrice = Utils.PRECISION
+      entity.sharesPrice = BigDecimal.fromString('1')
     } else {
       entity.sharesPrice = entity.totalFundsInDAI.div(Utils.normalize(shares.totalSupply()))
     }
@@ -50,7 +51,6 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
         let manager = new Manager(managerAddress)
         manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(managerAddress)))
         manager.kairoBalanceWithStake = manager.kairoBalance
-        manager.kairoBalanceWithStakeHistory = new Array<string>()
         manager.baseStake = manager.kairoBalance
         manager.riskTaken = Utils.ZERO_DEC
         manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)

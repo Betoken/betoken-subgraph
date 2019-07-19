@@ -1,13 +1,13 @@
 {
-  "name": "betoken-subgraph",
+  "name": "betoken",
   "license": "UNLICENSED",
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ ZeframLou/betoken-subgraph",
-    "create-local": "graph create --node http://localhost:8020/ ZeframLou/betoken-subgraph",
-    "remove-local": "graph remove --node http://localhost:8020/ ZeframLou/betoken-subgraph",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 ZeframLou/betoken-subgraph"
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ ZeframLou/betoken",
+    "create-local": "graph create --node http://localhost:8020/ ZeframLou/betoken",
+    "remove-local": "graph remove --node http://localhost:8020/ ZeframLou/betoken",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 ZeframLou/betoken"
   },
   "dependencies": {
     "@graphprotocol/graph-ts": "0.13.3"

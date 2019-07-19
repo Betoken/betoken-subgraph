@@ -53,6 +53,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   entity.upgradeVotingActive = fund.upgradeVotingActive()
   entity.upgradeSignalStrength = Utils.normalize(fund.upgradeSignalStrength(entity.cycleNumber))
   entity.nextVersion = fund.nextVersion().toHex()
+  entity.totalFundsAtPhaseStart = entity.totalFundsInDAI
   entity.save()
 
   let caller = Manager.load(event.transaction.from.toHex())
@@ -145,6 +146,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
   if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     let entity = new FulcrumOrder(id);
     entity.isShort = Utils.assetPTokenAddressToInfo(event.params._tokenAddress.toHex()).type;
+    entity.owner = event.params._sender.toHex()
     entity.idx = event.params._id
     entity.cycleNumber = event.params._cycleNumber
     entity.tokenAddress = event.params._tokenAddress.toHex()
@@ -159,6 +161,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.save()
   } else {
     let entity = new BasicOrder(id);
+    entity.owner = event.params._sender.toHex()
     entity.idx = event.params._id
     entity.cycleNumber = event.params._cycleNumber
     entity.tokenAddress = event.params._tokenAddress.toHex()
@@ -224,6 +227,7 @@ export function handleCreatedCompoundOrder(
 ): void {
   let id = event.params._sender.toHex() + '-' + event.params._cycleNumber.toString() + '-' + event.params._id.toString()
   let entity = new CompoundOrder(id)
+  entity.owner = event.params._sender.toHex()
   entity.idx = event.params._id
   entity.cycleNumber = event.params._cycleNumber
   entity.tokenAddress = event.params._tokenAddress.toHex()
@@ -308,7 +312,6 @@ export function handleRegister(event: RegisterEvent): void {
   let entity = new Manager(event.params._manager.toHex())
   entity.kairoBalance = Utils.normalize(event.params._kairoReceived)
   entity.kairoBalanceWithStake = entity.kairoBalance
-  entity.kairoBalanceWithStakeHistory = new Array<string>()
   entity.baseStake = entity.kairoBalance
   entity.riskTaken = Utils.ZERO_DEC
   entity.riskThreshold = entity.baseStake.times(Utils.RISK_THRESHOLD_TIME)
@@ -411,147 +414,144 @@ export function handleBlock(block: EthereumBlock): void {
     fund.lastProcessedBlock = block.number
     fund.save()
 
-    let tentativeKairoTotalSupply = Utils.ZERO_DEC
-    if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
-      for (let m = 0; m < fund.managers.length; m++) {
-        let manager = Manager.load(Utils.getArrItem<string>(fund.managers, m))
-        let riskTaken = Utils.ZERO_DEC
-        let totalStakeValue = Utils.ZERO_DEC
-        // basic orders
-        for (let o = 0; o < manager.basicOrders.length; o++) {
-          let order = BasicOrder.load(Utils.getArrItem<string>(manager.basicOrders, o))
-          if (order.cycleNumber.equals(fund.cycleNumber)) {
-            // update price
-            if (!order.isSold) {
-              order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress))
+    // update prices every 5 minutes
+    if (block.number.mod(Utils.PRICE_INTERVAL).equals(Utils.ZERO_INT)) {
+      let tentativeKairoTotalSupply = Utils.ZERO_DEC
+      if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
+        for (let m = 0; m < fund.managers.length; m++) {
+          let manager = Manager.load(Utils.getArrItem<string>(fund.managers, m))
+          let riskTaken = Utils.ZERO_DEC
+          let totalStakeValue = Utils.ZERO_DEC
+          // basic orders
+          for (let o = 0; o < manager.basicOrders.length; o++) {
+            let order = BasicOrder.load(Utils.getArrItem<string>(manager.basicOrders, o))
+            if (order.cycleNumber.equals(fund.cycleNumber)) {
+              // update price
+              if (!order.isSold) {
+                order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress))
+                order.save()
+                // record stake value
+                if (order.buyPrice.equals(Utils.ZERO_DEC)) {
+                  totalStakeValue = totalStakeValue.plus(order.stake)
+                } else {
+                  totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+                }
+              }
+              // record risk
+              let time: BigDecimal
+              if (order.isSold) {
+                time = order.sellTime.minus(order.buyTime).toBigDecimal()
+              } else {
+                time = block.timestamp.minus(order.buyTime).toBigDecimal()
+              }
+              riskTaken = riskTaken.plus(manager.baseStake.times(time))
+            }
+          }
+
+          // Fulcrum orders
+          for (let o = 0; o < manager.fulcrumOrders.length; o++) {
+            let order = FulcrumOrder.load(Utils.getArrItem<string>(manager.fulcrumOrders, o))
+            if (order.cycleNumber.equals(fund.cycleNumber)) {
+              // update price
+              if (!order.isSold) {
+                order.sellPrice = Utils.pTokenPrice(Address.fromString(order.tokenAddress))
+                order.liquidationPrice = Utils.pTokenLiquidationPrice(Address.fromString(order.tokenAddress))
+                order.save()
+                // record stake value
+                if (order.buyPrice.equals(Utils.ZERO_DEC)) {
+                  totalStakeValue = totalStakeValue.plus(order.stake)
+                } else {
+                  totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+                }
+              }
+              // record risk
+              let time: BigDecimal
+              if (order.isSold) {
+                time = order.sellTime.minus(order.buyTime).toBigDecimal()
+              } else {
+                time = block.timestamp.minus(order.buyTime).toBigDecimal()
+              }
+              riskTaken = riskTaken.plus(manager.baseStake.times(time))
+            }
+          }
+
+          // Compound orders
+          for (let o = 0; o < manager.compoundOrders.length; o++) {
+            let order = CompoundOrder.load(Utils.getArrItem<string>(manager.compoundOrders, o))
+            if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
+              let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
+              order.collateralRatio = Utils.normalize(contract.getCurrentCollateralRatioInDAI())
+
+              let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
+              order.currProfit = Utils.normalize(currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1)))
+
+              order.currCollateral = Utils.normalize(contract.getCurrentCollateralInDAI())
+              order.currBorrow = Utils.normalize(contract.getCurrentBorrowInDAI())
+              order.currCash = Utils.normalize(contract.getCurrentCashInDAI())
               order.save()
+
               // record stake value
-              if (order.buyPrice.equals(Utils.ZERO_DEC)) {
+              if (order.collateralAmountInDAI.equals(Utils.ZERO_DEC)) {
                 totalStakeValue = totalStakeValue.plus(order.stake)
               } else {
-                totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+                totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
               }
             }
-            // record risk
-            let time: BigDecimal
-            if (order.isSold) {
-              time = order.sellTime.minus(order.buyTime).toBigDecimal()
-            } else {
-              time = block.timestamp.minus(order.buyTime).toBigDecimal()
-            }
-            riskTaken = riskTaken.plus(manager.baseStake.times(time))
-          }
-        }
 
-        // Fulcrum orders
-        for (let o = 0; o < manager.fulcrumOrders.length; o++) {
-          let order = FulcrumOrder.load(Utils.getArrItem<string>(manager.fulcrumOrders, o))
-          if (order.cycleNumber.equals(fund.cycleNumber)) {
-            // update price
-            if (!order.isSold) {
-              order.sellPrice = Utils.pTokenPrice(Address.fromString(order.tokenAddress))
-              order.liquidationPrice = Utils.pTokenLiquidationPrice(Address.fromString(order.tokenAddress))
-              order.save()
-              // record stake value
-              if (order.buyPrice.equals(Utils.ZERO_DEC)) {
-                totalStakeValue = totalStakeValue.plus(order.stake)
+            // record risk
+            if (order.cycleNumber.equals(fund.cycleNumber)) {
+              let time: BigDecimal
+              if (order.isSold) {
+                time = order.sellTime.minus(order.buyTime).toBigDecimal()
               } else {
-                totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+                time = block.timestamp.minus(order.buyTime).toBigDecimal()
               }
-            }
-            // record risk
-            let time: BigDecimal
-            if (order.isSold) {
-              time = order.sellTime.minus(order.buyTime).toBigDecimal()
-            } else {
-              time = block.timestamp.minus(order.buyTime).toBigDecimal()
-            }
-            riskTaken = riskTaken.plus(manager.baseStake.times(time))
-          }
-        }
-
-        // Compound orders
-        for (let o = 0; o < manager.compoundOrders.length; o++) {
-          let order = CompoundOrder.load(Utils.getArrItem<string>(manager.compoundOrders, o))
-          if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
-            let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
-            order.collateralRatio = Utils.normalize(contract.getCurrentCollateralRatioInDAI())
-
-            let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
-            order.currProfit = Utils.normalize(currProfitObj.value1.times(currProfitObj.value0 ? BigInt.fromI32(-1) : BigInt.fromI32(1)))
-
-            order.currCollateral = Utils.normalize(contract.getCurrentCollateralInDAI())
-            order.currBorrow = Utils.normalize(contract.getCurrentBorrowInDAI())
-            order.currCash = Utils.normalize(contract.getCurrentCashInDAI())
-            order.save()
-
-            // record stake value
-            if (order.collateralAmountInDAI.equals(Utils.ZERO_DEC)) {
-              totalStakeValue = totalStakeValue.plus(order.stake)
-            } else {
-              totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
+              riskTaken = riskTaken.plus(manager.baseStake.times(time))
             }
           }
 
-          // record risk
-          if (order.cycleNumber.equals(fund.cycleNumber)) {
-            let time: BigDecimal
-            if (order.isSold) {
-              time = order.sellTime.minus(order.buyTime).toBigDecimal()
-            } else {
-              time = block.timestamp.minus(order.buyTime).toBigDecimal()
-            }
-            riskTaken = riskTaken.plus(manager.baseStake.times(time))
-          }
+          // risk taken
+          manager.riskTaken = riskTaken
+
+          // total stake value
+          manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
+
+          manager.save()
+
+          tentativeKairoTotalSupply = tentativeKairoTotalSupply.plus(manager.kairoBalanceWithStake)
         }
-
-        // risk taken
-        manager.riskTaken = riskTaken
-
-        // total stake value
-        manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
-        if (!totalStakeValue.equals(Utils.ZERO_DEC)) {
-          let dp = new DataPoint('kairoBalanceWithStakeHistory-' + manager.id + '-' + block.number.toString())
-          dp.timestamp = block.timestamp
-          dp.value = manager.kairoBalanceWithStake
-          dp.save()
-          let history = manager.kairoBalanceWithStakeHistory
-          history.push(dp.id)
-          manager.kairoBalanceWithStakeHistory = history
-        }
-
-        manager.save()
-
-        tentativeKairoTotalSupply = tentativeKairoTotalSupply.plus(manager.kairoBalanceWithStake)
+      } else {
+        tentativeKairoTotalSupply = fund.kairoTotalSupply
       }
-    } else {
-      tentativeKairoTotalSupply = fund.kairoTotalSupply
+
+      // record AUM
+      fund.aum = fund.totalFundsInDAI.times(tentativeKairoTotalSupply).div(fund.kairoTotalSupply)
+      // record Betoken Shares price
+      if (fund.sharesTotalSupply.equals(Utils.ZERO_DEC)) {
+        fund.sharesPrice = BigDecimal.fromString('1')
+      } else {
+        fund.sharesPrice = fund.aum.div(fund.sharesTotalSupply)
+      }
     }
 
-    // record AUM
-    fund.aum = fund.totalFundsInDAI.times(tentativeKairoTotalSupply).div(fund.kairoTotalSupply)
+    // record history every 24 hours
+    if (block.number.mod(Utils.RECORD_INTERVAL).equals(Utils.ZERO_INT)) {
+      let aumDP = new DataPoint('aumHistory-' + block.number.toString())
+      aumDP.timestamp = block.timestamp
+      aumDP.value = fund.aum
+      aumDP.save()
+      let aumHistory = fund.aumHistory
+      aumHistory.push(aumDP.id)
+      fund.aumHistory = aumHistory
 
-    let aumDP = new DataPoint('aumHistory-' + block.number.toString())
-    aumDP.timestamp = block.timestamp
-    aumDP.value = fund.aum
-    aumDP.save()
-    let aumHistory = fund.aumHistory
-    aumHistory.push(aumDP.id)
-    fund.aumHistory = aumHistory
-
-    // record Betoken Shares price
-    if (fund.sharesTotalSupply.equals(Utils.ZERO_DEC)) {
-      fund.sharesPrice = Utils.PRECISION
-    } else {
-      fund.sharesPrice = fund.aum.div(fund.sharesTotalSupply)
+      let dp = new DataPoint('sharesPriceHistory-' + block.number.toString())
+      dp.timestamp = block.timestamp
+      dp.value = fund.sharesPrice
+      dp.save()
+      let sharesPriceHistory = fund.sharesPriceHistory
+      sharesPriceHistory.push(dp.id)
+      fund.sharesPriceHistory = sharesPriceHistory
     }
-    let dp = new DataPoint('sharesPriceHistory-' + block.number.toString())
-    dp.timestamp = block.timestamp
-    dp.value = fund.sharesPrice
-    dp.save()
-    let sharesPriceHistory = fund.sharesPriceHistory
-    sharesPriceHistory.push(dp.id)
-    fund.sharesPriceHistory = sharesPriceHistory
 
     fund.save()
   }
