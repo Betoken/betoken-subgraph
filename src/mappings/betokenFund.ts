@@ -444,7 +444,7 @@ export function handleBlock(block: EthereumBlock): void {
               } else {
                 time = block.timestamp.minus(order.buyTime).toBigDecimal()
               }
-              riskTaken = riskTaken.plus(manager.baseStake.times(time))
+              riskTaken = riskTaken.plus(order.stake.times(time))
             }
           }
 
@@ -471,7 +471,7 @@ export function handleBlock(block: EthereumBlock): void {
               } else {
                 time = block.timestamp.minus(order.buyTime).toBigDecimal()
               }
-              riskTaken = riskTaken.plus(manager.baseStake.times(time))
+              riskTaken = riskTaken.plus(order.stake.times(time))
             }
           }
 
@@ -506,7 +506,7 @@ export function handleBlock(block: EthereumBlock): void {
               } else {
                 time = block.timestamp.minus(order.buyTime).toBigDecimal()
               }
-              riskTaken = riskTaken.plus(manager.baseStake.times(time))
+              riskTaken = riskTaken.plus(order.stake.times(time))
             }
           }
 
