@@ -415,7 +415,8 @@ export function handleBlock(block: EthereumBlock): void {
     fund.save()
 
     // update prices every 5 minutes
-    if (block.number.mod(Utils.PRICE_INTERVAL).equals(Utils.ZERO_INT)) {
+    if ((block.number.mod(Utils.PRICE_INTERVAL).equals(Utils.ZERO_INT) && block.number.ge(Utils.LATEST_BLOCK))
+        || (block.number.mod(Utils.RECORD_INTERVAL).equals(Utils.ZERO_INT) && block.number.lt(Utils.LATEST_BLOCK))) {
       let tentativeKairoTotalSupply = Utils.ZERO_DEC
       if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
         for (let m = 0; m < fund.managers.length; m++) {
