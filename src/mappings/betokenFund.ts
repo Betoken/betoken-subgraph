@@ -33,7 +33,7 @@ import {
 import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/BetokenFund/CompoundOrder'
 import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
 
-import { BigInt, Address, BigDecimal, EthereumBlock } from '@graphprotocol/graph-ts'
+import { BigInt, Address, BigDecimal, EthereumBlock, log } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
 
@@ -408,15 +408,12 @@ export function handleFinalizedNextVersion(
 export function handleBlock(block: EthereumBlock): void {
   let fund = Fund.load(Utils.FUND_ID)
   if (fund != null) {
-    if (!block.number.gt(fund.lastProcessedBlock)) {
-      return
-    }
     fund.lastProcessedBlock = block.number
     fund.save()
 
     // update prices every 5 minutes
-    if ((block.number.mod(Utils.PRICE_INTERVAL).equals(Utils.ZERO_INT) && block.number.ge(Utils.LATEST_BLOCK))
-        || (block.number.mod(Utils.RECORD_INTERVAL).equals(Utils.ZERO_INT) && block.number.lt(Utils.LATEST_BLOCK))) {
+    if ((block.number.gt(Utils.LATEST_BLOCK) && block.number.mod(Utils.PRICE_INTERVAL).isZero()) || (block.number.lt(Utils.LATEST_BLOCK) && block.number.mod(Utils.RECORD_INTERVAL).isZero())) {
+      log.info("Updating price for block: {}, {}, {}, {}, {}, {}", [block.number.toString(), block.number.gt(Utils.LATEST_BLOCK) ? "0" : "1", block.number.mod(Utils.PRICE_INTERVAL).isZero() ? "0" : "1", block.number.lt(Utils.LATEST_BLOCK) ? "0" : "1", block.number.mod(Utils.RECORD_INTERVAL).isZero() ? "0" : "1", block.number.mod(Utils.RECORD_INTERVAL).toString()])
       let tentativeKairoTotalSupply = Utils.ZERO_DEC
       if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
         for (let m = 0; m < fund.managers.length; m++) {
@@ -536,7 +533,9 @@ export function handleBlock(block: EthereumBlock): void {
     }
 
     // record history every 24 hours
-    if (block.number.mod(Utils.RECORD_INTERVAL).equals(Utils.ZERO_INT)) {
+    if (block.number.mod(Utils.RECORD_INTERVAL).isZero()) {
+      log.info("Recording historical data for block: {}", [block.number.toString()])
+
       let aumDP = new DataPoint('aumHistory-' + block.number.toString())
       aumDP.timestamp = block.timestamp
       aumDP.value = fund.aum
