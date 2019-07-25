@@ -33,9 +33,9 @@ export let FUND_ID = 'BetokenFund'
 export let CALLER_REWARD = BigDecimal.fromString('1')
 export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-export let RECORD_INTERVAL = BigInt.fromI32(5760) // 24 hours if avg block time is 15 seconds
-export let PRICE_INTERVAL = BigInt.fromI32(20) // 5 minutes if avg block time is 15 seconds
-export let LATEST_BLOCK = BigInt.fromI32(8200001)
+export let RECORD_INTERVAL = BigInt.fromI32(24 * 60 * 60 / 15) // 24 hours if avg block time is 15 seconds
+export let PRICE_INTERVAL = BigInt.fromI32(5 * 60 / 15) // 5 minutes if avg block time is 15 seconds
+export let LATEST_BLOCK = BigInt.fromI32(8220501)
 
 // Helpers
 
