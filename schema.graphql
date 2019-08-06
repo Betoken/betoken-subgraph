@@ -33,6 +33,7 @@ type BasicOrder @entity {
   cycleNumber: BigInt!
   stake: BigDecimal!
   tokenAmount: BigDecimal!
+  rawTokenAmount: BigInt!
   buyPrice: BigDecimal!
   sellPrice: BigDecimal!
   buyTime: BigInt!
@@ -70,6 +71,7 @@ type FulcrumOrder @entity {
   cycleNumber: BigInt!
   stake: BigDecimal!
   tokenAmount: BigDecimal!
+  rawTokenAmount: BigInt!
   buyPrice: BigDecimal!
   sellPrice: BigDecimal! # unit is underlyingToken/pToken
   liquidationPrice: BigDecimal! # unit is underlyingToken/pToken

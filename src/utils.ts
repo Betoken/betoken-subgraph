@@ -35,7 +35,7 @@ export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 export let RECORD_INTERVAL = BigInt.fromI32(24 * 60 * 60 / 15) // 24 hours if avg block time is 15 seconds
 export let PRICE_INTERVAL = BigInt.fromI32(5 * 60 / 15) // 5 minutes if avg block time is 15 seconds
-export let LATEST_BLOCK = BigInt.fromI32(8246000)
+export let LATEST_BLOCK = BigInt.fromI32(8300500)
 
 // Helpers
 
@@ -83,7 +83,7 @@ export function pTokenPrice(_addr: Address): BigDecimal {
   } else {
     // short token, underlying is token
     let underlying = token.loanTokenAddress()
-    let underlyingPrice = getPriceOfToken(underlying)
+    let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
     return priceInUnderlying.times(underlyingPrice)
   }
 }
@@ -98,7 +98,7 @@ export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
   } else {
     // short token, underlying is token
     let underlying = token.loanTokenAddress()
-    let underlyingPrice = getPriceOfToken(underlying)
+    let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
     return priceInUnderlying.times(underlyingPrice)
   }
 }
@@ -140,7 +140,7 @@ export function getArrItem<T>(arr: Array<T>, idx: i32): T {
   return a[idx]
 }
 
-export function getPriceOfToken(tokenAddress: Address): BigDecimal {
+export function getPriceOfToken(tokenAddress: Address, tokenAmount: BigInt): BigDecimal {
   let kyber = KyberNetwork.bind(KYBER_ADDR)
   let token = MiniMeToken.bind(tokenAddress)
   let decimals: i32
@@ -149,8 +149,13 @@ export function getPriceOfToken(tokenAddress: Address): BigDecimal {
   } else {
     decimals = token.decimals()
   }
-  let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(decimals))
-  return normalize(result.value1)
+  if (tokenAmount.gt(ZERO_INT)) {
+    let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tokenAmount)
+    return normalize(result.value0)
+  } else {
+    let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(decimals))
+    return normalize(result.value0)
+  }
 }
 
 export function normalize(i: BigInt): BigDecimal {

@@ -158,6 +158,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.isSold = false
     entity.sellPrice = Utils.pTokenPrice(event.params._tokenAddress)
     entity.liquidationPrice = Utils.pTokenLiquidationPrice(event.params._tokenAddress)
+    entity.rawTokenAmount = event.params._tokenAmount;
     entity.save()
   } else {
     let entity = new BasicOrder(id);
@@ -168,10 +169,11 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.tokenAmount = event.params._tokenAmount.toBigDecimal().div(Utils.tenPow(decimals).toBigDecimal())
     entity.stake = Utils.normalize(event.params._stakeInWeis)
     entity.buyPrice = Utils.normalize(event.params._buyPrice)
-    entity.sellPrice = Utils.getPriceOfToken(event.params._tokenAddress)
+    entity.sellPrice = Utils.getPriceOfToken(event.params._tokenAddress, event.params._tokenAmount)
     entity.buyTime = event.block.timestamp
     entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
+    entity.rawTokenAmount = event.params._tokenAmount;
     entity.save()
   }
 
@@ -426,7 +428,7 @@ export function handleBlock(block: EthereumBlock): void {
             if (order.cycleNumber.equals(fund.cycleNumber)) {
               // update price
               if (!order.isSold) {
-                order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress))
+                order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress), order.rawTokenAmount)
                 order.save()
                 // record stake value
                 if (order.buyPrice.equals(Utils.ZERO_DEC)) {
