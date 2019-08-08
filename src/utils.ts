@@ -103,7 +103,7 @@ export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
   }
 }
 
-export function updateTotalFunds(event: EthereumEvent): void {
+export function updateTotalFunds(): void {
   let fund = Fund.load(FUND_ID)
   let fundAddress = Address.fromString(fund.address)
   let fundContract = BetokenFund.bind(fundAddress)

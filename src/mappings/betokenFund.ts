@@ -42,6 +42,7 @@ import * as Utils from '../utils'
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let entity = Fund.load(Utils.FUND_ID);
   let fund = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fund.controlTokenAddr())
 
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = Utils.CyclePhase[event.params._newPhase.toI32()]
@@ -58,8 +59,6 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
 
   let caller = Manager.load(event.transaction.from.toHex())
   if (caller != null) {
-    let fund = BetokenFund.bind(event.address)
-    let kairo = MiniMeToken.bind(fund.controlTokenAddr())
     caller.kairoBalance = Utils.normalize(kairo.balanceOf(event.transaction.from))
     caller.save()
     let fundEntity = Fund.load(Utils.FUND_ID)
@@ -69,7 +68,9 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
 
   for (let m: i32 = 0; m < entity.managers.length; m++) {
     let manager = Manager.load(Utils.getArrItem<string>(entity.managers, m))
+    manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
     manager.baseStake = manager.kairoBalance
+    manager.kairoBalanceWithStake = manager.kairoBalance
     manager.riskTaken = Utils.ZERO_DEC
     manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
     manager.upgradeSignal = false;
@@ -103,7 +104,7 @@ export function handleDeposit(event: DepositEvent): void {
   investor.depositWithdrawHistory = history
   investor.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -131,7 +132,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   investor.depositWithdrawHistory = history
   investor.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
@@ -212,7 +213,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
     entity.save()
   }
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 
   let manager = Manager.load(event.params._sender.toHex())
   let fund = BetokenFund.bind(event.address)
@@ -273,7 +274,7 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   entity.outputAmount = Utils.normalize(event.params._earnedDAIAmount)
   entity.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 
   let manager = Manager.load(event.params._sender.toHex())
   let fund = BetokenFund.bind(event.address)
@@ -327,7 +328,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.totalCommissionReceived = Utils.ZERO_DEC
   entity.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 
   let fund = Fund.load(Utils.FUND_ID)
   let managers = fund.managers
@@ -478,8 +479,26 @@ export function handleBlock(block: EthereumBlock): void {
           // Compound orders
           for (let o = 0; o < manager.compoundOrders.length; o++) {
             let order = CompoundOrder.load(Utils.getArrItem<string>(manager.compoundOrders, o))
+            // Ad hoc fix: sometimes sold compound order isn't registered by the event handler
+            // So check the order's status from the contract
+            let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
+            if (contract.isSold() && !order.isSold) {
+              order.isSold = true
+              order.sellTime = block.timestamp;
+              order.outputAmount = Utils.normalize(contract.outputAmount())
+              order.save()
+            
+              Utils.updateTotalFunds()
+            
+              let fundContract = BetokenFund.bind(Address.fromString(fund.address))
+              let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
+              manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
+              manager.save()
+              fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
+              fund.save()
+            }
+
             if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
-              let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
               order.collateralRatio = Utils.normalize(contract.getCurrentCollateralRatioInDAI())
 
               let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
