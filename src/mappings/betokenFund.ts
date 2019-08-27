@@ -27,7 +27,9 @@ import {
   Investor,
   DepositWithdraw,
   Fund,
-  DataPoint
+  DataPoint,
+  ManagerROI,
+  TokenPrice
 } from "../../generated/schema"
 
 import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/BetokenFund/CompoundOrder'
@@ -36,6 +38,7 @@ import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/
 import { BigInt, Address, BigDecimal, EthereumBlock, log } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
+import { TokenInfo, KYBER_TOKENS } from '../kyber_tokens'
 
 // Handlers
 
@@ -69,6 +72,17 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   for (let m: i32 = 0; m < entity.managers.length; m++) {
     let manager = Manager.load(Utils.getArrItem<string>(entity.managers, m))
     manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
+
+    // record manager ROI
+    let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
+    roi.manager = manager.id
+    roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
+    roi.roi = manager.baseStake.gt(Utils.ZERO_DEC) ? manager.kairoBalance.div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100')) : Utils.ZERO_DEC
+    roi.save()
+    let roiHistory = manager.roiHistory
+    roiHistory.push(roi.id)
+    manager.roiHistory = roiHistory
+
     manager.baseStake = manager.kairoBalance
     manager.kairoBalanceWithStake = manager.kairoBalance
     manager.riskTaken = Utils.ZERO_DEC
@@ -160,6 +174,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.sellPrice = Utils.pTokenPrice(event.params._tokenAddress)
     entity.liquidationPrice = Utils.pTokenLiquidationPrice(event.params._tokenAddress)
     entity.rawTokenAmount = event.params._tokenAmount;
+    entity.txHash = event.transaction.hash.toHex()
     entity.save()
   } else {
     let entity = new BasicOrder(id);
@@ -175,6 +190,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
     entity.rawTokenAmount = event.params._tokenAmount;
+    entity.txHash = event.transaction.hash.toHex()
     entity.save()
   }
 
@@ -242,6 +258,7 @@ export function handleCreatedCompoundOrder(
   entity.isSold = false
   entity.orderAddress = event.params._order.toHex()
   entity.outputAmount = Utils.ZERO_DEC
+  entity.txHash = event.transaction.hash.toHex()
 
   let contract = CompoundOrderContract.bind(event.params._order)
   entity.marketCollateralFactor = Utils.normalize(contract.getMarketCollateralFactor())
@@ -323,6 +340,7 @@ export function handleRegister(event: RegisterEvent): void {
   entity.fulcrumOrders = new Array<string>()
   entity.compoundOrders = new Array<string>()
   entity.commissionHistory = new Array<string>()
+  entity.roiHistory = new Array<string>()
   entity.votes = new Array<string>()
   entity.upgradeSignal = false
   entity.totalCommissionReceived = Utils.ZERO_DEC
@@ -572,6 +590,17 @@ export function handleBlock(block: EthereumBlock): void {
       let sharesPriceHistory = fund.sharesPriceHistory
       sharesPriceHistory.push(dp.id)
       fund.sharesPriceHistory = sharesPriceHistory
+
+      // record token prices
+      for (let i = 0; i < KYBER_TOKENS.length; i++) {
+        let token: TokenInfo = Utils.getArrItem<TokenInfo>(KYBER_TOKENS, i)
+        let tokenPrice = new TokenPrice(token.address + '-' + block.timestamp.toString())
+        tokenPrice.tokenAddress = token.address
+        tokenPrice.tokenSymbol = token.symbol
+        tokenPrice.priceInDAI = Utils.getPriceOfToken(Address.fromString(token.address), Utils.ZERO_INT)
+        tokenPrice.timestamp = block.timestamp
+        tokenPrice.save()
+      }
     }
 
     fund.save()
