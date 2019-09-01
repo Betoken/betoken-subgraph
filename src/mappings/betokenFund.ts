@@ -74,15 +74,17 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
 
     // record manager ROI
-    let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
-    roi.manager = manager.id
-    roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
-    log.info("ROI: manager: {}, kairoBalance: {}, baseStake: {}", [manager.id, manager.kairoBalance.toString(), manager.baseStake.toString()])
-    roi.roi = manager.baseStake.equals(Utils.ZERO_DEC) ? Utils.ZERO_DEC : manager.kairoBalance.div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100'))
-    roi.save()
-    let roiHistory = manager.roiHistory
-    roiHistory.push(roi.id)
-    manager.roiHistory = roiHistory
+    if (event.params._newPhase.toI32() == 0) {
+      let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
+      roi.manager = manager.id
+      roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
+      log.info("ROI: manager: {}, kairoBalance: {}, baseStake: {}", [manager.id, manager.kairoBalance.toString(), manager.baseStake.toString()])
+      roi.roi = manager.baseStake.equals(Utils.ZERO_DEC) ? Utils.ZERO_DEC : manager.kairoBalance.div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100'))
+      roi.save()
+      let roiHistory = manager.roiHistory
+      roiHistory.push(roi.id)
+      manager.roiHistory = roiHistory
+    }
 
     manager.baseStake = manager.kairoBalance
     manager.kairoBalanceWithStake = manager.kairoBalance
@@ -506,9 +508,9 @@ export function handleBlock(block: EthereumBlock): void {
               order.sellTime = block.timestamp;
               order.outputAmount = Utils.normalize(contract.outputAmount())
               order.save()
-            
+
               Utils.updateTotalFunds()
-            
+
               let fundContract = BetokenFund.bind(Address.fromString(fund.address))
               let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
               manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
