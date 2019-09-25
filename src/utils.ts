@@ -94,6 +94,11 @@ export function pTokenPrice(_addr: Address): BigDecimal {
 
 export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
   let token = PositionToken.bind(_addr)
+  // handle contract call failure
+  let tryPrice = token.tryCall('liquidationPrice', [])
+  if (tryPrice.reverted) {
+    return ZERO_DEC
+  }
   let priceInUnderlying = normalize(token.liquidationPrice())
   let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
   if (!tokenInfo.type) {
