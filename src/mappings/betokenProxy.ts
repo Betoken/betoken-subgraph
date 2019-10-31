@@ -21,29 +21,30 @@ import { Manager } from "../../generated/schema";
 
 export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
   // initialize fund entity
-  let entity = Fund.load(Utils.FUND_ID)
-  if (entity == null) {
-    entity = new Fund(Utils.FUND_ID)
+  let fund_entity = Fund.load(Utils.FUND_ID)
+  if (fund_entity == null) {
+    fund_entity = new Fund(Utils.FUND_ID)
     let fund = BetokenFund.bind(event.params._newFundAddr)
     let kairo = MiniMeToken.bind(fund.controlTokenAddr())
     let shares = MiniMeToken.bind(fund.shareTokenAddr())
-    entity.totalFundsInDAI = Utils.normalize(fund.totalFundsInDAI())
-    entity.totalFundsAtPhaseStart = entity.totalFundsInDAI
-    entity.kairoPrice = Utils.normalize(fund.kairoPrice())
-    entity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
+    fund_entity.totalFundsInDAI = Utils.normalize(fund.totalFundsInDAI())
+    fund_entity.totalFundsAtPhaseStart = fund_entity.totalFundsInDAI
+    fund_entity.kairoPrice = Utils.normalize(fund.kairoPrice())
+    fund_entity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
     if (shares.totalSupply().equals(Utils.ZERO_INT)) {
-      entity.sharesPrice = BigDecimal.fromString('1')
+      fund_entity.sharesPrice = BigDecimal.fromString('1')
     } else {
-      entity.sharesPrice = entity.totalFundsInDAI.div(Utils.normalize(shares.totalSupply()))
+      fund_entity.sharesPrice = fund_entity.totalFundsInDAI.div(Utils.normalize(shares.totalSupply()))
     }
-    entity.sharesTotalSupply = Utils.normalize(shares.totalSupply())
-    entity.sharesPriceHistory = new Array<string>()
-    entity.aum = entity.totalFundsInDAI
-    entity.aumHistory = new Array<string>()
-    entity.cycleTotalCommission = Utils.ZERO_DEC
-    entity.managers = new Array<string>()
-    entity.cycleNumber = fund.cycleNumber()
-    entity.cyclePhase = Utils.CyclePhase[fund.cyclePhase()]
+    fund_entity.sharesTotalSupply = Utils.normalize(shares.totalSupply())
+    fund_entity.sharesPriceHistory = new Array<string>()
+    fund_entity.aum = fund_entity.totalFundsInDAI
+    fund_entity.aumHistory = new Array<string>()
+    fund_entity.cycleTotalCommission = Utils.ZERO_DEC
+    fund_entity.managers = new Array<string>()
+    fund_entity.cycleNumber = fund.cycleNumber()
+    fund_entity.cyclePhase = Utils.CyclePhase[fund.cyclePhase()]
+    fund_entity.startTimeOfCyclePhase = Utils.ZERO_INT
 
     for (let m = 0; m < Utils.INITIAL_MANAGERS.length; m++) {
       let managerAddress = Utils.INITIAL_MANAGERS[m];
@@ -64,26 +65,25 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
         manager.totalCommissionReceived = Utils.ZERO_DEC
         manager.save()
 
-        let managers = entity.managers
+        let managers = fund_entity.managers
         managers.push(manager.id)
-        entity.managers = managers
-        entity.save()
+        fund_entity.managers = managers
       }
     }
-
     MiniMeTokenTemplate.create(fund.shareTokenAddr())
   }
-  entity.address = event.params._newFundAddr.toHex()
-  entity.lastProcessedBlock = event.block.number
-  entity.hasFinalizedNextVersion = false
-  entity.upgradeVotingActive = false
-  entity.nextVersion = ""
-  entity.proposers = new Array<string>()
-  entity.candidates = new Array<string>()
-  entity.forVotes = new Array<BigDecimal>()
-  entity.againstVotes = new Array<BigDecimal>()
-  entity.upgradeSignalStrength = Utils.ZERO_DEC
-  entity.save()
+
+  fund_entity.address = event.params._newFundAddr.toHex()
+  fund_entity.lastProcessedBlock = event.block.number
+  fund_entity.hasFinalizedNextVersion = false
+  fund_entity.upgradeVotingActive = false
+  fund_entity.nextVersion = ""
+  fund_entity.proposers = new Array<string>()
+  fund_entity.candidates = new Array<string>()
+  fund_entity.forVotes = new Array<BigDecimal>()
+  fund_entity.againstVotes = new Array<BigDecimal>()
+  fund_entity.upgradeSignalStrength = Utils.ZERO_DEC
+  fund_entity.save()
 
   BetokenFundTemplate.create(event.params._newFundAddr)
 }
