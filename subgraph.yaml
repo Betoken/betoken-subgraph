@@ -1,4 +1,4 @@
-specVersion: 0.0.1
+specVersion: 0.0.2
 schema:
   file: ./schema.graphql
 dataSources:
@@ -26,89 +26,89 @@ dataSources:
         - event: UpdatedFundAddress(address)
           handler: handleUpdatedFundAddress
       file: ./src/mappings/betokenProxy.ts
-    templates:
-      - kind: ethereum/contract
-        name: BetokenFund
-        network: mainnet
-        source:
-          abi: BetokenFund
-        mapping:
-          kind: ethereum/events
-          apiVersion: 0.0.3
-          language: wasm/assemblyscript
-          file: ./src/mappings/betokenFund.ts
-          entities:
-            - Manager
-            - BasicOrder
-            - CompoundOrder
-            - FulcrumOrder
-            - CommissionRedemption
-            - Investor
-            - DepositWithdraw
-            - Fund
-            - DataPoint
-          abis:
-            - name: CompoundOrder
-              file: ./abis/CompoundOrder.json
-            - name: PositionToken
-              file: ./abis/PositionToken.json
-            - name: MiniMeToken
-              file: ./abis/MiniMeToken.json
-            - name: BetokenFund
-              file: ./abis/BetokenFund.json
-            - name: KyberNetwork
-              file: ./abis/KyberNetwork.json
-          blockHandlers:
-            - handler: handleBlock
-          eventHandlers:
-            - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
-              handler: handleChangedPhase
-            - event: Deposit(indexed uint256,indexed address,address,uint256,uint256,uint256)
-              handler: handleDeposit
-            - event: Withdraw(indexed uint256,indexed address,address,uint256,uint256,uint256)
-              handler: handleWithdraw
-            - event: CreatedInvestment(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256,uint256)
-              handler: handleCreatedInvestment
-            - event: SoldInvestment(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256)
-              handler: handleSoldInvestment
-            - event: CreatedCompoundOrder(indexed uint256,indexed address,uint256,address,bool,address,uint256,uint256)
-              handler: handleCreatedCompoundOrder
-            - event: SoldCompoundOrder(indexed uint256,indexed address,uint256,address,bool,address,uint256,uint256)
-              handler: handleSoldCompoundOrder
-            - event: CommissionPaid(indexed uint256,indexed address,uint256)
-              handler: handleCommissionPaid
-            - event: TotalCommissionPaid(indexed uint256,uint256)
-              handler: handleTotalCommissionPaid
-            - event: Register(indexed address,uint256,uint256)
-              handler: handleRegister
-            - event: SignaledUpgrade(indexed uint256,indexed address,indexed bool)
-              handler: handleSignaledUpgrade
-            - event: DeveloperInitiatedUpgrade(indexed uint256,address)
-              handler: handleDeveloperInitiatedUpgrade
-            - event: InitiatedUpgrade(indexed uint256)
-              handler: handleInitiatedUpgrade
-            - event: ProposedCandidate(indexed uint256,indexed uint256,indexed address,address)
-              handler: handleProposedCandidate
-            - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
-              handler: handleVoted
-            - event: FinalizedNextVersion(indexed uint256,address)
-              handler: handleFinalizedNextVersion
-      - kind: ethereum/contract
-        name: MiniMeToken
-        network: mainnet
-        source:
-          abi: MiniMeToken
-        mapping:
-          kind: ethereum/events
-          apiVersion: 0.0.3
-          language: wasm/assemblyscript
-          file: ./src/mappings/miniMeToken.ts
-          entities:
-            - Investor
-            - Fund
-          abis:
-            - name: MiniMeToken
-              file: ./abis/MiniMeToken.json
-          eventHandlers:
-            - event: Transfer(indexed address,indexed address,uint256)
-              handler: handleTokenTransfer
+templates:
+  - kind: ethereum/contract
+    name: BetokenFund
+    network: mainnet
+    source:
+      abi: BetokenFund
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      file: ./src/mappings/betokenFund.ts
+      entities:
+        - Manager
+        - BasicOrder
+        - CompoundOrder
+        - FulcrumOrder
+        - CommissionRedemption
+        - Investor
+        - DepositWithdraw
+        - Fund
+        - DataPoint
+      abis:
+        - name: CompoundOrder
+          file: ./abis/CompoundOrder.json
+        - name: PositionToken
+          file: ./abis/PositionToken.json
+        - name: MiniMeToken
+          file: ./abis/MiniMeToken.json
+        - name: BetokenFund
+          file: ./abis/BetokenFund.json
+        - name: KyberNetwork
+          file: ./abis/KyberNetwork.json
+      blockHandlers:
+        - handler: handleBlock
+      eventHandlers:
+        - event: ChangedPhase(indexed uint256,indexed uint256,uint256,uint256)
+          handler: handleChangedPhase
+        - event: Deposit(indexed uint256,indexed address,address,uint256,uint256,uint256)
+          handler: handleDeposit
+        - event: Withdraw(indexed uint256,indexed address,address,uint256,uint256,uint256)
+          handler: handleWithdraw
+        - event: CreatedInvestment(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256,uint256)
+          handler: handleCreatedInvestment
+        - event: SoldInvestment(indexed uint256,indexed address,uint256,address,uint256,uint256,uint256)
+          handler: handleSoldInvestment
+        - event: CreatedCompoundOrder(indexed uint256,indexed address,uint256,address,bool,address,uint256,uint256)
+          handler: handleCreatedCompoundOrder
+        - event: SoldCompoundOrder(indexed uint256,indexed address,uint256,address,bool,address,uint256,uint256)
+          handler: handleSoldCompoundOrder
+        - event: CommissionPaid(indexed uint256,indexed address,uint256)
+          handler: handleCommissionPaid
+        - event: TotalCommissionPaid(indexed uint256,uint256)
+          handler: handleTotalCommissionPaid
+        - event: Register(indexed address,uint256,uint256)
+          handler: handleRegister
+        - event: SignaledUpgrade(indexed uint256,indexed address,indexed bool)
+          handler: handleSignaledUpgrade
+        - event: DeveloperInitiatedUpgrade(indexed uint256,address)
+          handler: handleDeveloperInitiatedUpgrade
+        - event: InitiatedUpgrade(indexed uint256)
+          handler: handleInitiatedUpgrade
+        - event: ProposedCandidate(indexed uint256,indexed uint256,indexed address,address)
+          handler: handleProposedCandidate
+        - event: Voted(indexed uint256,indexed uint256,indexed address,bool,uint256)
+          handler: handleVoted
+        - event: FinalizedNextVersion(indexed uint256,address)
+          handler: handleFinalizedNextVersion
+  - kind: ethereum/contract
+    name: MiniMeToken
+    network: mainnet
+    source:
+      abi: MiniMeToken
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      file: ./src/mappings/miniMeToken.ts
+      entities:
+        - Investor
+        - Fund
+      abis:
+        - name: MiniMeToken
+          file: ./abis/MiniMeToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTokenTransfer

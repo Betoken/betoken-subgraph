@@ -9,7 +9,8 @@
     "remove-local": "graph remove --node http://localhost:8020/ ZeframLou/betoken",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 ZeframLou/betoken"
   },
-  "dependencies": {
-    "@graphprotocol/graph-ts": "0.13.3"
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "0.16.0",
+    "@graphprotocol/graph-ts": "0.16.0"
   }
 }
