@@ -9,7 +9,8 @@
     "remove-local": "graph remove --node http://localhost:8020/ Betoken/betoken-v1",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 Betoken/betoken-v1"
   },
-  "dependencies": {
-    "@graphprotocol/graph-ts": "^0.15.1"
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "0.16.0",
+    "@graphprotocol/graph-ts": "0.16.0"
   }
 }
