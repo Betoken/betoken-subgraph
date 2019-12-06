@@ -1,6 +1,6 @@
 import {
   BetokenFund
-} from "../../generated/BetokenProxy/templates/BetokenFund/BetokenFund"
+} from "../../generated/templates/BetokenFund/BetokenFund"
 import {
   UpdatedFundAddress as UpdatedFundAddressEvent
 } from "../../generated/BetokenProxy/BetokenProxy"
@@ -10,8 +10,8 @@ import {
 import {
   MiniMeToken as MiniMeTokenTemplate,
   BetokenFund as BetokenFundTemplate
-} from '../../generated/BetokenProxy/templates'
-import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
+} from '../../generated/templates'
+import { MiniMeToken } from '../../generated/templates/MiniMeToken/MiniMeToken'
 import { BigDecimal, Address } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
@@ -45,6 +45,7 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
     fund_entity.cycleNumber = fund.cycleNumber()
     fund_entity.cyclePhase = Utils.CyclePhase[fund.cyclePhase()]
     fund_entity.startTimeOfCyclePhase = Utils.ZERO_INT
+    fund_entity.cycleROIHistory = new Array<BigDecimal>();
 
     for (let m = 0; m < Utils.INITIAL_MANAGERS.length; m++) {
       let managerAddress = Utils.INITIAL_MANAGERS[m];

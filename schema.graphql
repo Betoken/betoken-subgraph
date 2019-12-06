@@ -126,6 +126,7 @@ type Fund @entity {
   cycleTotalCommission: BigDecimal!
   managers: [Manager!]!
   lastProcessedBlock: BigInt!
+  cycleROIHistory: [BigDecimal!]!
   # upgrade governance related
   hasFinalizedNextVersion: Boolean!
   upgradeVotingActive: Boolean!

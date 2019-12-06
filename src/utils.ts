@@ -1,15 +1,15 @@
 import { BigInt, Address, BigDecimal } from '@graphprotocol/graph-ts'
 import {
   BetokenFund,
-} from "../generated/BetokenProxy/templates/BetokenFund/BetokenFund"
+} from "../generated/templates/BetokenFund/BetokenFund"
 
 import {
   Fund
 } from "../generated/schema"
 
-import { MiniMeToken } from '../generated/BetokenProxy/templates/BetokenFund/MiniMeToken'
-import { KyberNetwork } from "../generated/BetokenProxy/templates/BetokenFund/KyberNetwork"
-import { PositionToken } from '../generated/BetokenProxy/templates/BetokenFund/PositionToken'
+import { MiniMeToken } from '../generated/templates/BetokenFund/MiniMeToken'
+import { KyberNetwork } from "../generated/templates/BetokenFund/KyberNetwork"
+import { PositionToken } from '../generated/templates/BetokenFund/PositionToken'
 
 // Constants
 
@@ -75,11 +75,11 @@ export function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
 export function pTokenPrice(_addr: Address): BigDecimal {
   let token = PositionToken.bind(_addr)
   // handle contract call failure
-  let tryPrice = token.tryCall('tokenPrice', [])
-  if (tryPrice.reverted) {
+  let tokenPrice = token.try_tokenPrice()
+  if (tokenPrice.reverted) {
     return ZERO_DEC
   }
-  let priceInUnderlying = normalize(token.tokenPrice())
+  let priceInUnderlying = normalize(tokenPrice.value)
   let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
   if (!tokenInfo.type) {
     // long token, underlying is DAI
@@ -95,11 +95,11 @@ export function pTokenPrice(_addr: Address): BigDecimal {
 export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
   let token = PositionToken.bind(_addr)
   // handle contract call failure
-  let tryPrice = token.tryCall('liquidationPrice', [])
-  if (tryPrice.reverted) {
+  let liquidationPrice = token.try_liquidationPrice()
+  if (liquidationPrice.reverted) {
     return ZERO_DEC
   }
-  let priceInUnderlying = normalize(token.liquidationPrice())
+  let priceInUnderlying = normalize(liquidationPrice.value)
   let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
   if (!tokenInfo.type) {
     // long token, underlying is DAI
@@ -149,8 +149,7 @@ export function getArrItem<T>(arr: Array<T>, idx: i32): T {
   return a[idx]
 }
 
-export function getPriceOfToken(tokenAddress: Address, tokenAmount: BigInt): BigDecimal {
-  let kyber = KyberNetwork.bind(KYBER_ADDR)
+export function getTokenDecimals(tokenAddress: Address): i32 {
   let token = MiniMeToken.bind(tokenAddress)
   let decimals: i32
   if (ETH_ADDR.includes(tokenAddress.toHex())) {
@@ -158,12 +157,24 @@ export function getPriceOfToken(tokenAddress: Address, tokenAmount: BigInt): Big
   } else {
     decimals = token.decimals()
   }
+  return decimals
+}
+
+export function getPriceOfToken(tokenAddress: Address, tokenAmount: BigInt): BigDecimal {
+  let kyber = KyberNetwork.bind(KYBER_ADDR)
+  let decimals: i32 = getTokenDecimals(tokenAddress)
   if (tokenAmount.gt(ZERO_INT)) {
-    let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tokenAmount)
-    return normalize(result.value0)
+    let result = kyber.try_getExpectedRate(tokenAddress, DAI_ADDR, tokenAmount)
+    if (result.reverted) {
+      return ZERO_DEC
+    }
+    return normalize(result.value.value0)
   } else {
-    let result = kyber.getExpectedRate(tokenAddress, DAI_ADDR, tenPow(decimals))
-    return normalize(result.value0)
+    let result = kyber.try_getExpectedRate(tokenAddress, DAI_ADDR, tenPow(decimals))
+    if (result.reverted) {
+      return ZERO_DEC
+    }
+    return normalize(result.value.value0)
   }
 }
 

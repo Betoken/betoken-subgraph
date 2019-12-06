@@ -16,7 +16,7 @@ import {
   Voted as VotedEvent,
   FinalizedNextVersion as FinalizedNextVersionEvent,
   BetokenFund,
-} from "../../generated/BetokenProxy/templates/BetokenFund/BetokenFund"
+} from "../../generated/templates/BetokenFund/BetokenFund"
 
 import {
   Manager,
@@ -32,8 +32,8 @@ import {
   TokenPrice
 } from "../../generated/schema"
 
-import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/BetokenFund/CompoundOrder'
-import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
+import { CompoundOrder as CompoundOrderContract } from '../../generated/templates/BetokenFund/CompoundOrder'
+import { MiniMeToken } from '../../generated/templates/MiniMeToken/MiniMeToken'
 
 import { BigInt, Address, BigDecimal, EthereumBlock, log } from '@graphprotocol/graph-ts'
 
@@ -46,6 +46,17 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let entity = Fund.load(Utils.FUND_ID);
   let fund = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())
+
+  Utils.updateTotalFunds()
+
+  // record cycle ROI
+  if (event.params._newPhase.equals(Utils.ZERO_INT) && !event.params._cycleNumber.equals(BigInt.fromI32(1))) {
+    let currentTotalFundsInDAI = entity.totalFundsInDAI
+    let cycleROI = currentTotalFundsInDAI.minus(entity.totalFundsAtPhaseStart).div(entity.totalFundsAtPhaseStart)
+    let cycleROIHistory = entity.cycleROIHistory
+    cycleROIHistory.push(cycleROI)
+    entity.cycleROIHistory = cycleROIHistory
+  }
 
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = Utils.CyclePhase[event.params._newPhase.toI32()]
@@ -217,25 +228,33 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
 }
 
 export function handleSoldInvestment(event: SoldInvestmentEvent): void {
+  let fund = BetokenFund.bind(event.address)
+  let investmentObj = fund.userInvestments(event.params._sender, event.params._id)
+  let tokenDecimals = Utils.getTokenDecimals(event.params._tokenAddress)
   let id = event.params._sender.toHex() + '-' + event.params._cycleNumber.toString() + '-' + event.params._id.toString()
   if (Utils.isFulcrumTokenAddress(event.params._tokenAddress.toHex())) {
     let entity = FulcrumOrder.load(id);
     entity.isSold = true
     entity.sellTime = event.block.timestamp
     entity.sellPrice = Utils.normalize(event.params._sellPrice)
+    entity.stake = Utils.normalize(investmentObj.value2)
+    entity.rawTokenAmount = investmentObj.value3
+    entity.tokenAmount = entity.rawTokenAmount.divDecimal(Utils.tenPow(tokenDecimals).toBigDecimal())
     entity.save()
   } else {
     let entity = BasicOrder.load(id);
     entity.isSold = true
     entity.sellTime = event.block.timestamp
     entity.sellPrice = Utils.normalize(event.params._sellPrice)
+    entity.stake = Utils.normalize(investmentObj.value2)
+    entity.rawTokenAmount = investmentObj.value3
+    entity.tokenAmount = entity.rawTokenAmount.divDecimal(Utils.tenPow(tokenDecimals).toBigDecimal())
     entity.save()
   }
 
   Utils.updateTotalFunds()
 
   let manager = Manager.load(event.params._sender.toHex())
-  let fund = BetokenFund.bind(event.address)
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())
   manager.kairoBalance = Utils.normalize(kairo.balanceOf(event.params._sender))
   manager.save()

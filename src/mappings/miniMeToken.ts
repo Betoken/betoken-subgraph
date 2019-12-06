@@ -1,5 +1,5 @@
-import { Transfer as TransferEvent } from "../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken"
-import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/MiniMeToken'
+import { Transfer as TransferEvent } from "../../generated/templates/MiniMeToken/MiniMeToken"
+import { MiniMeToken } from '../../generated/templates/MiniMeToken/MiniMeToken'
 import { Investor, Fund } from "../../generated/schema"
 import * as Utils from '../utils'
 
