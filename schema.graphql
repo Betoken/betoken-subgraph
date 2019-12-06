@@ -22,6 +22,7 @@ type Manager @entity {
   fulcrumOrders: [FulcrumOrder!]!
   commissionHistory: [CommissionRedemption!]!
   totalCommissionReceived: BigDecimal!
+  roiHistory: [ManagerROI!]!
   upgradeSignal: Boolean!
   votes: [VoteDirection!]!
 }
@@ -33,12 +34,14 @@ type BasicOrder @entity {
   cycleNumber: BigInt!
   stake: BigDecimal!
   tokenAmount: BigDecimal!
+  rawTokenAmount: BigInt!
   buyPrice: BigDecimal!
   sellPrice: BigDecimal!
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!
   owner: String!
+  txHash: String! # transaction hash of order creation
 }
 
 type CompoundOrder @entity {
@@ -61,6 +64,7 @@ type CompoundOrder @entity {
   isShort: Boolean!
   orderAddress: String!
   owner: String!
+  txHash: String! # transaction hash of order creation
 }
 
 type FulcrumOrder @entity {
@@ -70,6 +74,7 @@ type FulcrumOrder @entity {
   cycleNumber: BigInt!
   stake: BigDecimal!
   tokenAmount: BigDecimal!
+  rawTokenAmount: BigInt!
   buyPrice: BigDecimal!
   sellPrice: BigDecimal! # unit is underlyingToken/pToken
   liquidationPrice: BigDecimal! # unit is underlyingToken/pToken
@@ -78,6 +83,7 @@ type FulcrumOrder @entity {
   isSold: Boolean!
   isShort: Boolean!
   owner: String!
+  txHash: String! # transaction hash of order creation
 }
 
 type CommissionRedemption @entity {
@@ -135,4 +141,19 @@ type DataPoint @entity {
   id: ID! # timestamp
   timestamp: BigInt!
   value: BigDecimal!
+}
+
+type ManagerROI @entity {
+  id: ID!
+  manager: String!
+  cycle: BigInt!
+  roi: BigDecimal!
+}
+
+type TokenPrice @entity {
+  id: ID!
+  tokenSymbol: String!
+  tokenAddress: String!
+  priceInDAI: BigDecimal!
+  timestamp: BigInt!
 }

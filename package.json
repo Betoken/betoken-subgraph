@@ -1,13 +1,13 @@
 {
   "name": "betoken",
-  "license": "UNLICENSED",
+  "license": "GNU GPL V3",
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ ZeframLou/betoken",
-    "create-local": "graph create --node http://localhost:8020/ ZeframLou/betoken",
-    "remove-local": "graph remove --node http://localhost:8020/ ZeframLou/betoken",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 ZeframLou/betoken"
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ --ipfs https://api.thegraph.com/ipfs/ Betoken/betoken-v1",
+    "create-local": "graph create --node http://localhost:8020/ Betoken/betoken-v1",
+    "remove-local": "graph remove --node http://localhost:8020/ Betoken/betoken-v1",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 Betoken/betoken-v1"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "0.16.0",

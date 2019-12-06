@@ -63,6 +63,8 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
         manager.votes = new Array<string>()
         manager.upgradeSignal = false
         manager.totalCommissionReceived = Utils.ZERO_DEC
+        manager.roiHistory = new Array<string>()
+
         manager.save()
 
         let managers = fund_entity.managers

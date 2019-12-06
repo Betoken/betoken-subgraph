@@ -27,7 +27,9 @@ import {
   Investor,
   DepositWithdraw,
   Fund,
-  DataPoint
+  DataPoint,
+  ManagerROI,
+  TokenPrice
 } from "../../generated/schema"
 
 import { CompoundOrder as CompoundOrderContract } from '../../generated/BetokenProxy/templates/BetokenFund/CompoundOrder'
@@ -36,12 +38,14 @@ import { MiniMeToken } from '../../generated/BetokenProxy/templates/MiniMeToken/
 import { BigInt, Address, BigDecimal, EthereumBlock, log } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
+import { TokenInfo, KYBER_TOKENS } from '../kyber_tokens'
 
 // Handlers
 
 export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let entity = Fund.load(Utils.FUND_ID);
   let fund = BetokenFund.bind(event.address)
+  let kairo = MiniMeToken.bind(fund.controlTokenAddr())
 
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = Utils.CyclePhase[event.params._newPhase.toI32()]
@@ -58,8 +62,6 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
 
   let caller = Manager.load(event.transaction.from.toHex())
   if (caller != null) {
-    let fund = BetokenFund.bind(event.address)
-    let kairo = MiniMeToken.bind(fund.controlTokenAddr())
     caller.kairoBalance = Utils.normalize(kairo.balanceOf(event.transaction.from))
     caller.save()
     let fundEntity = Fund.load(Utils.FUND_ID)
@@ -69,7 +71,23 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
 
   for (let m: i32 = 0; m < entity.managers.length; m++) {
     let manager = Manager.load(Utils.getArrItem<string>(entity.managers, m))
+    manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
+
+    // record manager ROI
+    if (event.params._newPhase.toI32() == 0) {
+      let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
+      roi.manager = manager.id
+      roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
+      log.info("ROI: manager: {}, kairoBalance: {}, baseStake: {}", [manager.id, manager.kairoBalance.toString(), manager.baseStake.toString()])
+      roi.roi = manager.baseStake.equals(Utils.ZERO_DEC) ? Utils.ZERO_DEC : manager.kairoBalance.div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100'))
+      roi.save()
+      let roiHistory = manager.roiHistory
+      roiHistory.push(roi.id)
+      manager.roiHistory = roiHistory
+    }
+
     manager.baseStake = manager.kairoBalance
+    manager.kairoBalanceWithStake = manager.kairoBalance
     manager.riskTaken = Utils.ZERO_DEC
     manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
     manager.upgradeSignal = false;
@@ -103,7 +121,7 @@ export function handleDeposit(event: DepositEvent): void {
   investor.depositWithdrawHistory = history
   investor.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -131,7 +149,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   investor.depositWithdrawHistory = history
   investor.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 }
 
 export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
@@ -158,6 +176,8 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.isSold = false
     entity.sellPrice = Utils.pTokenPrice(event.params._tokenAddress)
     entity.liquidationPrice = Utils.pTokenLiquidationPrice(event.params._tokenAddress)
+    entity.rawTokenAmount = event.params._tokenAmount;
+    entity.txHash = event.transaction.hash.toHex()
     entity.save()
   } else {
     let entity = new BasicOrder(id);
@@ -168,10 +188,12 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.tokenAmount = event.params._tokenAmount.toBigDecimal().div(Utils.tenPow(decimals).toBigDecimal())
     entity.stake = Utils.normalize(event.params._stakeInWeis)
     entity.buyPrice = Utils.normalize(event.params._buyPrice)
-    entity.sellPrice = Utils.getPriceOfToken(event.params._tokenAddress)
+    entity.sellPrice = Utils.getPriceOfToken(event.params._tokenAddress, event.params._tokenAmount)
     entity.buyTime = event.block.timestamp
     entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
+    entity.rawTokenAmount = event.params._tokenAmount;
+    entity.txHash = event.transaction.hash.toHex()
     entity.save()
   }
 
@@ -210,7 +232,7 @@ export function handleSoldInvestment(event: SoldInvestmentEvent): void {
     entity.save()
   }
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 
   let manager = Manager.load(event.params._sender.toHex())
   let fund = BetokenFund.bind(event.address)
@@ -239,6 +261,7 @@ export function handleCreatedCompoundOrder(
   entity.isSold = false
   entity.orderAddress = event.params._order.toHex()
   entity.outputAmount = Utils.ZERO_DEC
+  entity.txHash = event.transaction.hash.toHex()
 
   let contract = CompoundOrderContract.bind(event.params._order)
   entity.marketCollateralFactor = Utils.normalize(contract.getMarketCollateralFactor())
@@ -271,7 +294,7 @@ export function handleSoldCompoundOrder(event: SoldCompoundOrderEvent): void {
   entity.outputAmount = Utils.normalize(event.params._earnedDAIAmount)
   entity.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 
   let manager = Manager.load(event.params._sender.toHex())
   let fund = BetokenFund.bind(event.address)
@@ -320,12 +343,13 @@ export function handleRegister(event: RegisterEvent): void {
   entity.fulcrumOrders = new Array<string>()
   entity.compoundOrders = new Array<string>()
   entity.commissionHistory = new Array<string>()
+  entity.roiHistory = new Array<string>()
   entity.votes = new Array<string>()
   entity.upgradeSignal = false
   entity.totalCommissionReceived = Utils.ZERO_DEC
   entity.save()
 
-  Utils.updateTotalFunds(event)
+  Utils.updateTotalFunds()
 
   let fund = Fund.load(Utils.FUND_ID)
   let managers = fund.managers
@@ -426,7 +450,7 @@ export function handleBlock(block: EthereumBlock): void {
             if (order.cycleNumber.equals(fund.cycleNumber)) {
               // update price
               if (!order.isSold) {
-                order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress))
+                order.sellPrice = Utils.getPriceOfToken(Address.fromString(order.tokenAddress), order.rawTokenAmount)
                 order.save()
                 // record stake value
                 if (order.buyPrice.equals(Utils.ZERO_DEC)) {
@@ -476,8 +500,26 @@ export function handleBlock(block: EthereumBlock): void {
           // Compound orders
           for (let o = 0; o < manager.compoundOrders.length; o++) {
             let order = CompoundOrder.load(Utils.getArrItem<string>(manager.compoundOrders, o))
+            // Ad hoc fix: sometimes sold compound order isn't registered by the event handler
+            // So check the order's status from the contract
+            let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
+            if (contract.isSold() && !order.isSold) {
+              order.isSold = true
+              order.sellTime = block.timestamp;
+              order.outputAmount = Utils.normalize(contract.outputAmount())
+              order.save()
+
+              Utils.updateTotalFunds()
+
+              let fundContract = BetokenFund.bind(Address.fromString(fund.address))
+              let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
+              manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
+              manager.save()
+              fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
+              fund.save()
+            }
+
             if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
-              let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
               order.collateralRatio = Utils.normalize(contract.getCurrentCollateralRatioInDAI())
 
               let currProfitObj = contract.getCurrentProfitInDAI() // value0: isNegative, value1: value
@@ -551,6 +593,17 @@ export function handleBlock(block: EthereumBlock): void {
       let sharesPriceHistory = fund.sharesPriceHistory
       sharesPriceHistory.push(dp.id)
       fund.sharesPriceHistory = sharesPriceHistory
+
+      // record token prices
+      for (let i = 0; i < KYBER_TOKENS.length; i++) {
+        let token: TokenInfo = Utils.getArrItem<TokenInfo>(KYBER_TOKENS, i)
+        let tokenPrice = new TokenPrice(token.address + '-' + block.timestamp.toString())
+        tokenPrice.tokenAddress = token.address
+        tokenPrice.tokenSymbol = token.symbol
+        tokenPrice.priceInDAI = Utils.getPriceOfToken(Address.fromString(token.address), Utils.ZERO_INT)
+        tokenPrice.timestamp = block.timestamp
+        tokenPrice.save()
+      }
     }
 
     fund.save()
