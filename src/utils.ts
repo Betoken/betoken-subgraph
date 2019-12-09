@@ -27,16 +27,24 @@ export let ZERO_INT = BigInt.fromI32(0)
 export let ZERO_DEC = BigDecimal.fromString('0')
 export let PRECISION = new BigDecimal(tenPow(18))
 export let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
-export let DAI_ADDR = Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
 export let FUND_ID = 'BetokenFund'
 export let CALLER_REWARD = BigDecimal.fromString('1')
 export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 export let RECORD_INTERVAL = BigInt.fromI32(24 * 60 * 60 / 15) // 24 hours if avg block time is 15 seconds
 export let PRICE_INTERVAL = BigInt.fromI32(5 * 60 / 15) // 5 minutes if avg block time is 15 seconds
-export let LATEST_BLOCK = BigInt.fromI32(9074825 + 40000)
+export let LATEST_BLOCK = BigInt.fromI32(9078100 + 6000)
 
 // Helpers
+
+export function DAI_ADDR(): Address {
+  let fund = Fund.load(FUND_ID)
+  if (fund.versionNum.equals(ZERO_INT)) {
+    return Address.fromString("0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359")
+  } else {
+    return Address.fromString("0x6B175474E89094C44Da98b954EedeAC495271d0F")
+  }
+}
 
 export function getPTokens(): Array<pToken> {
   let fund = Fund.load(FUND_ID)
@@ -195,13 +203,13 @@ export function getPriceOfToken(tokenAddress: Address, tokenAmount: BigInt): Big
   let kyber = KyberNetwork.bind(KYBER_ADDR)
   let decimals: i32 = getTokenDecimals(tokenAddress)
   if (tokenAmount.gt(ZERO_INT)) {
-    let result = kyber.try_getExpectedRate(tokenAddress, DAI_ADDR, tokenAmount)
+    let result = kyber.try_getExpectedRate(tokenAddress, DAI_ADDR(), tokenAmount)
     if (result.reverted) {
       return ZERO_DEC
     }
     return normalize(result.value.value0)
   } else {
-    let result = kyber.try_getExpectedRate(tokenAddress, DAI_ADDR, tenPow(decimals))
+    let result = kyber.try_getExpectedRate(tokenAddress, DAI_ADDR(), tenPow(decimals))
     if (result.reverted) {
       return ZERO_DEC
     }
