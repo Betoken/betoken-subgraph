@@ -112,6 +112,7 @@ export function handleDeposit(event: DepositEvent): void {
   if (investor == null) {
     investor = new Investor(event.transaction.from.toHex())
     investor.depositWithdrawHistory = new Array<string>()
+    investor.sharesBalance = Utils.ZERO_DEC
     investor.save()
   }
 
