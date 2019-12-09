@@ -22,7 +22,7 @@ VoteDirection.push('EMPTY')
 VoteDirection.push('FOR')
 VoteDirection.push('AGAINST')
 
-import { PTOKENS, pTokenInfo, pToken } from './fulcrum_tokens'
+import { PTOKENS, PTOKENS_V2, pTokenInfo, pToken } from './fulcrum_tokens'
 export let ZERO_INT = BigInt.fromI32(0)
 export let ZERO_DEC = BigDecimal.fromString('0')
 export let PRECISION = new BigDecimal(tenPow(18))
@@ -38,10 +38,30 @@ export let LATEST_BLOCK = BigInt.fromI32(8631907 + 12000)
 
 // Helpers
 
+export function getPTokens(): Array<pToken> {
+  let fund = Fund.load(FUND_ID)
+  if (fund.versionNum.equals(ZERO_INT)) {
+    return PTOKENS
+  } else {
+    return PTOKENS_V2
+  }
+}
+
+export function getPTokenUnderlyingToken(_addr: Address): Address {
+  let token = PositionToken.bind(_addr)
+  let fund = Fund.load(FUND_ID)
+  if (fund.versionNum.equals(ZERO_INT)) {
+    return token.loanTokenAddress()
+  } else {
+    return token.tradeTokenAddress()
+  }
+}
+
 export function assetPTokenAddressToPTokenIndex(_addr: string): i32 {
   let idx = -1
-  for (let j = 0; j < PTOKENS.length; j++) {
-    let x: pToken = PTOKENS[j]
+  let pTokens = getPTokens()
+  for (let j = 0; j < pTokens.length; j++) {
+    let x: pToken = pTokens[j]
     for (let k = 0; k < x.pTokens.length; k++) {
       let y: pTokenInfo = x.pTokens[k]
       if (y.address.includes(_addr)) {
@@ -62,7 +82,8 @@ export function isFulcrumTokenAddress(_tokenAddress: string): boolean {
 
 // precondition: _addr is the address of a pToken
 export function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
-  let pTokens = PTOKENS[assetPTokenAddressToPTokenIndex(_addr)].pTokens
+  let pTokenList = getPTokens()
+  let pTokens = pTokenList[assetPTokenAddressToPTokenIndex(_addr)].pTokens
   for (let i = 0; i < pTokens.length; i++) {
     let info: pTokenInfo = pTokens[i]
     if (info.address.includes(_addr)) {
@@ -70,6 +91,11 @@ export function assetPTokenAddressToInfo(_addr: string): pTokenInfo {
     }
   }
   return null
+}
+
+export function assetPTokenAddressToPToken(_addr: Address): pToken {
+  let pTokenList = getPTokens()
+  return pTokenList[assetPTokenAddressToPTokenIndex(_addr.toHex())]
 }
 
 export function pTokenPrice(_addr: Address): BigDecimal {
@@ -86,7 +112,7 @@ export function pTokenPrice(_addr: Address): BigDecimal {
     return priceInUnderlying
   } else {
     // short token, underlying is token
-    let underlying = token.loanTokenAddress()
+    let underlying = getPTokenUnderlyingToken(_addr)
     let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
     return priceInUnderlying.times(underlyingPrice)
   }
@@ -106,10 +132,15 @@ export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
     return priceInUnderlying
   } else {
     // short token, underlying is token
-    let underlying = token.loanTokenAddress()
+    let underlying = getPTokenUnderlyingToken(_addr)
     let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
     return priceInUnderlying.times(underlyingPrice)
   }
+}
+
+export function pTokenTradeTokenPrice(_addr: Address): BigDecimal {
+  let pToken = assetPTokenAddressToPToken(_addr)
+  return getPriceOfToken(Address.fromString(pToken.tokenAddress), ZERO_INT)
 }
 
 export function updateTotalFunds(): void {

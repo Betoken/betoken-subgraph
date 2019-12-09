@@ -12,7 +12,7 @@ import {
   BetokenFund as BetokenFundTemplate
 } from '../../generated/templates'
 import { MiniMeToken } from '../../generated/templates/MiniMeToken/MiniMeToken'
-import { BigDecimal, Address } from '@graphprotocol/graph-ts'
+import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts'
 
 import * as Utils from '../utils'
 import { Manager } from "../../generated/schema";
@@ -46,6 +46,7 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
     fund_entity.cyclePhase = Utils.CyclePhase[fund.cyclePhase()]
     fund_entity.startTimeOfCyclePhase = Utils.ZERO_INT
     fund_entity.cycleROIHistory = new Array<BigDecimal>();
+    fund_entity.versionNum = Utils.ZERO_INT
 
     for (let m = 0; m < Utils.INITIAL_MANAGERS.length; m++) {
       let managerAddress = Utils.INITIAL_MANAGERS[m];
@@ -74,6 +75,8 @@ export function handleUpdatedFundAddress(event: UpdatedFundAddressEvent): void {
       }
     }
     MiniMeTokenTemplate.create(fund.shareTokenAddr())
+  } else {
+    fund_entity.versionNum = fund_entity.versionNum.plus(BigInt.fromI32(1))
   }
 
   fund_entity.address = event.params._newFundAddr.toHex()

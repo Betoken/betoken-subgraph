@@ -58,6 +58,7 @@ type CompoundOrder @entity {
   currCash: BigDecimal!
   marketCollateralFactor: BigDecimal!
   outputAmount: BigDecimal!
+  buyTokenPrice: BigDecimal! # the buy price of the token being traded (e.g. ETH, WBTC)
   buyTime: BigInt!
   sellTime: BigInt!
   isSold: Boolean!
@@ -76,6 +77,7 @@ type FulcrumOrder @entity {
   tokenAmount: BigDecimal!
   rawTokenAmount: BigInt!
   buyPrice: BigDecimal!
+  buyTokenPrice: BigDecimal! # the buy price of the token being traded (e.g. ETH, WBTC)
   sellPrice: BigDecimal! # unit is underlyingToken/pToken
   liquidationPrice: BigDecimal! # unit is underlyingToken/pToken
   buyTime: BigInt!
@@ -136,6 +138,7 @@ type Fund @entity {
   forVotes: [BigDecimal!]!
   againstVotes: [BigDecimal!]!
   upgradeSignalStrength: BigDecimal!
+  versionNum: BigInt!
 }
 
 type DataPoint @entity {

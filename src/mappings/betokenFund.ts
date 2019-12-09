@@ -182,6 +182,7 @@ export function handleCreatedInvestment(event: CreatedInvestmentEvent): void {
     entity.tokenAmount = event.params._tokenAmount.toBigDecimal().div(Utils.tenPow(decimals).toBigDecimal())
     entity.stake = Utils.normalize(event.params._stakeInWeis)
     entity.buyPrice = Utils.normalize(event.params._buyPrice)
+    entity.buyTokenPrice = Utils.pTokenTradeTokenPrice(event.params._tokenAddress)
     entity.buyTime = event.block.timestamp
     entity.sellTime = Utils.ZERO_INT
     entity.isSold = false
@@ -274,6 +275,7 @@ export function handleCreatedCompoundOrder(
   entity.tokenAddress = event.params._tokenAddress.toHex()
   entity.stake = Utils.normalize(event.params._stakeInWeis)
   entity.collateralAmountInDAI = Utils.normalize(event.params._costDAIAmount)
+  entity.buyTokenPrice = Utils.getPriceOfToken(event.params._tokenAddress, Utils.ZERO_INT)
   entity.buyTime = event.block.timestamp
   entity.sellTime = Utils.ZERO_INT
   entity.isShort = event.params._orderType
