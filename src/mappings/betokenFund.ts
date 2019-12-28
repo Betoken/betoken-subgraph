@@ -61,10 +61,10 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   entity.cycleNumber = event.params._cycleNumber
   entity.cyclePhase = Utils.CyclePhase[event.params._newPhase.toI32()]
   entity.startTimeOfCyclePhase = event.block.timestamp
-  entity.candidates.length = 0
-  entity.proposers.length = 0
-  entity.forVotes.length = 0
-  entity.againstVotes.length = 0
+  entity.candidates = new Array<string>()
+  entity.proposers = new Array<string>()
+  entity.forVotes = new Array<BigDecimal>()
+  entity.againstVotes = new Array<BigDecimal>()
   entity.upgradeVotingActive = fund.upgradeVotingActive()
   entity.upgradeSignalStrength = Utils.normalize(fund.upgradeSignalStrength(entity.cycleNumber))
   entity.nextVersion = fund.nextVersion().toHex()
@@ -102,7 +102,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     manager.riskTaken = Utils.ZERO_DEC
     manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
     manager.upgradeSignal = false;
-    manager.votes.length = 0;
+    manager.votes = new Array<string>();
     manager.save()
   }
 }
