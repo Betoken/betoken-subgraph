@@ -445,7 +445,7 @@ export function handleFinalizedNextVersion(
 ): void {
   let entity = Fund.load(Utils.FUND_ID)
   entity.hasFinalizedNextVersion = true
-  entity.nextVersion = event.params._nextVersion.toString()
+  entity.nextVersion = event.params._nextVersion.toHexString()
   entity.save()
 }
 
