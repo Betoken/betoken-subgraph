@@ -34,7 +34,7 @@ export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 export let RECORD_INTERVAL = BigInt.fromI32(24 * 60 * 60 / 15) // 24 hours if avg block time is 15 seconds
 export let PRICE_INTERVAL = BigInt.fromI32(5 * 60 / 15) // 5 minutes if avg block time is 15 seconds
-export let LATEST_BLOCK = BigInt.fromI32(9191161 + 4000)
+export let LATEST_BLOCK = BigInt.fromI32(9191879 + 4000)
 
 // Helpers
 
@@ -223,6 +223,11 @@ export function normalize(i: BigInt): BigDecimal {
 }
 
 export function toKairoROI(investmentROI: BigDecimal): BigDecimal {
+  // don't change anything for v1
+  let fund = Fund.load(FUND_ID)
+  if (fund.versionNum.equals(ZERO_INT)) {
+    return investmentROI
+  }
   let punishmentThreshold = BigDecimal.fromString('-0.1')
   let burnThreshold = BigDecimal.fromString('-0.25')
   let punishmentSlope = BigDecimal.fromString('6')
