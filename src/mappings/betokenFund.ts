@@ -460,12 +460,13 @@ export function handleBlock(block: EthereumBlock): void {
     // update prices every 5 minutes
     if ((block.number.ge(Utils.LATEST_BLOCK) && block.number.mod(Utils.PRICE_INTERVAL).isZero()) || (block.number.lt(Utils.LATEST_BLOCK) && block.number.mod(Utils.RECORD_INTERVAL).isZero())) {
       log.info("Updating price for block: {}", [block.number.toString()])
-      let tentativeKairoTotalSupply = Utils.ZERO_DEC
+      let tentativeTotalInvestmentValueInKairo = Utils.ZERO_DEC
       if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
         for (let m = 0; m < fund.managers.length; m++) {
           let manager = Manager.load(Utils.getArrItem<string>(fund.managers, m))
           let riskTaken = Utils.ZERO_DEC
-          let totalStakeValue = Utils.ZERO_DEC
+          let totalStakeKairoValue = Utils.ZERO_DEC // total staked Kairo value modified by Utils.toKairoROI
+          let totalStakeInvestmentValue = Utils.ZERO_DEC // the total value of staked tokens, denoted in Kairo
           // basic orders
           for (let o = 0; o < manager.basicOrders.length; o++) {
             let order = BasicOrder.load(Utils.getArrItem<string>(manager.basicOrders, o))
@@ -476,9 +477,13 @@ export function handleBlock(block: EthereumBlock): void {
                 order.save()
                 // record stake value
                 if (order.buyPrice.equals(Utils.ZERO_DEC)) {
-                  totalStakeValue = totalStakeValue.plus(order.stake)
+                  totalStakeInvestmentValue = totalStakeInvestmentValue.plus(order.stake)
+                  totalStakeKairoValue = totalStakeKairoValue.plus(order.stake)
                 } else {
-                  totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+                  let investmentROI = order.sellPrice.minus(order.buyPrice).div(order.buyPrice)
+                  let kairoROI = Utils.toKairoROI(investmentROI)
+                  totalStakeInvestmentValue = totalStakeInvestmentValue.plus(order.stake.times(investmentROI.plus(Utils.ONE_DEC)))
+                  totalStakeKairoValue = totalStakeKairoValue.plus(order.stake.times(kairoROI.plus(Utils.ONE_DEC)))
                 }
               }
               // record risk
@@ -503,9 +508,13 @@ export function handleBlock(block: EthereumBlock): void {
                 order.save()
                 // record stake value
                 if (order.buyPrice.equals(Utils.ZERO_DEC)) {
-                  totalStakeValue = totalStakeValue.plus(order.stake)
+                  totalStakeInvestmentValue = totalStakeInvestmentValue.plus(order.stake)
+                  totalStakeKairoValue = totalStakeKairoValue.plus(order.stake)
                 } else {
-                  totalStakeValue = totalStakeValue.plus(order.stake.times(order.sellPrice).div(order.buyPrice))
+                  let investmentROI = order.sellPrice.minus(order.buyPrice).div(order.buyPrice)
+                  let kairoROI = Utils.toKairoROI(investmentROI)
+                  totalStakeInvestmentValue = totalStakeInvestmentValue.plus(order.stake.times(investmentROI.plus(Utils.ONE_DEC)))
+                  totalStakeKairoValue = totalStakeKairoValue.plus(order.stake.times(kairoROI.plus(Utils.ONE_DEC)))
                 }
               }
               // record risk
@@ -554,9 +563,13 @@ export function handleBlock(block: EthereumBlock): void {
 
               // record stake value
               if (order.collateralAmountInDAI.equals(Utils.ZERO_DEC)) {
-                totalStakeValue = totalStakeValue.plus(order.stake)
+                totalStakeInvestmentValue = totalStakeInvestmentValue.plus(order.stake)
+                totalStakeKairoValue = totalStakeKairoValue.plus(order.stake)
               } else {
-                totalStakeValue = totalStakeValue.plus(order.stake.times(order.currProfit).div(order.collateralAmountInDAI).plus(order.stake))
+                let investmentROI = order.currProfit.div(order.collateralAmountInDAI)
+                let kairoROI = Utils.toKairoROI(investmentROI)
+                totalStakeInvestmentValue = totalStakeInvestmentValue.plus(order.stake.times(investmentROI.plus(Utils.ONE_DEC)))
+                totalStakeKairoValue = totalStakeKairoValue.plus(order.stake.times(kairoROI.plus(Utils.ONE_DEC)))
               }
             }
 
@@ -576,21 +589,21 @@ export function handleBlock(block: EthereumBlock): void {
           manager.riskTaken = riskTaken
 
           // total stake value
-          manager.kairoBalanceWithStake = totalStakeValue.plus(manager.kairoBalance)
+          manager.kairoBalanceWithStake = totalStakeKairoValue.plus(manager.kairoBalance)
 
           manager.save()
 
-          tentativeKairoTotalSupply = tentativeKairoTotalSupply.plus(manager.kairoBalanceWithStake)
+          tentativeTotalInvestmentValueInKairo = tentativeTotalInvestmentValueInKairo.plus(manager.kairoBalance).plus(totalStakeInvestmentValue)
         }
       } else {
-        tentativeKairoTotalSupply = fund.kairoTotalSupply
+        tentativeTotalInvestmentValueInKairo = fund.kairoTotalSupply
       }
 
       // record AUM
-      fund.aum = fund.totalFundsInDAI.times(tentativeKairoTotalSupply).div(fund.kairoTotalSupply)
+      fund.aum = fund.totalFundsInDAI.times(tentativeTotalInvestmentValueInKairo).div(fund.kairoTotalSupply)
       // record Betoken Shares price
       if (fund.sharesTotalSupply.equals(Utils.ZERO_DEC)) {
-        fund.sharesPrice = BigDecimal.fromString('1')
+        fund.sharesPrice = Utils.ONE_DEC
       } else {
         fund.sharesPrice = fund.aum.div(fund.sharesTotalSupply)
       }

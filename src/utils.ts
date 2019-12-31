@@ -25,6 +25,7 @@ VoteDirection.push('AGAINST')
 import { PTOKENS, PTOKENS_V2, pTokenInfo, pToken } from './fulcrum_tokens'
 export let ZERO_INT = BigInt.fromI32(0)
 export let ZERO_DEC = BigDecimal.fromString('0')
+export let ONE_DEC = BigDecimal.fromString('1')
 export let PRECISION = new BigDecimal(tenPow(18))
 export let KYBER_ADDR = Address.fromString("0x818E6FECD516Ecc3849DAf6845e3EC868087B755")
 export let FUND_ID = 'BetokenFund'
@@ -33,7 +34,7 @@ export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 export let RECORD_INTERVAL = BigInt.fromI32(24 * 60 * 60 / 15) // 24 hours if avg block time is 15 seconds
 export let PRICE_INTERVAL = BigInt.fromI32(5 * 60 / 15) // 5 minutes if avg block time is 15 seconds
-export let LATEST_BLOCK = BigInt.fromI32(9180460 + 6000)
+export let LATEST_BLOCK = BigInt.fromI32(9191161 + 4000)
 
 // Helpers
 
@@ -219,6 +220,23 @@ export function getPriceOfToken(tokenAddress: Address, tokenAmount: BigInt): Big
 
 export function normalize(i: BigInt): BigDecimal {
   return i.toBigDecimal().div(PRECISION)
+}
+
+export function toKairoROI(investmentROI: BigDecimal): BigDecimal {
+  let punishmentThreshold = BigDecimal.fromString('-0.1')
+  let burnThreshold = BigDecimal.fromString('-0.25')
+  let punishmentSlope = BigDecimal.fromString('6')
+  let punishmentBias = BigDecimal.fromString('0.5')
+  if (investmentROI.ge(punishmentThreshold)) {
+    // no punishment
+    return investmentROI
+  } else if (investmentROI.lt(punishmentThreshold) && investmentROI.gt(burnThreshold)) {
+    // punishment
+    return investmentROI.times(punishmentSlope).plus(punishmentBias)
+  } else {
+    // burn
+    return BigDecimal.fromString('-1')
+  }
 }
 
 export let INITIAL_MANAGERS: Array<string> = [
