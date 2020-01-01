@@ -460,6 +460,12 @@ export function handleBlock(block: EthereumBlock): void {
     // update prices every 5 minutes
     if ((block.number.ge(Utils.LATEST_BLOCK) && block.number.mod(Utils.PRICE_INTERVAL).isZero()) || (block.number.lt(Utils.LATEST_BLOCK) && block.number.mod(Utils.RECORD_INTERVAL).isZero())) {
       log.info("Updating price for block: {}", [block.number.toString()])
+
+      let fundContract = BetokenFund.bind(Address.fromString(fund.address))
+      let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
+      fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
+      fund.save()
+
       let tentativeTotalInvestmentValueInKairo = Utils.ZERO_DEC
       if (fund.cycleNumber.gt(Utils.ZERO_INT) && fund.cyclePhase.includes(Utils.CyclePhase[1])) {
         for (let m = 0; m < fund.managers.length; m++) {
@@ -467,6 +473,11 @@ export function handleBlock(block: EthereumBlock): void {
           let riskTaken = Utils.ZERO_DEC
           let totalStakeKairoValue = Utils.ZERO_DEC // total staked Kairo value modified by Utils.toKairoROI
           let totalStakeInvestmentValue = Utils.ZERO_DEC // the total value of staked tokens, denoted in Kairo
+
+          // update kairo balances
+          manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
+          manager.save()
+
           // basic orders
           for (let o = 0; o < manager.basicOrders.length; o++) {
             let order = BasicOrder.load(Utils.getArrItem<string>(manager.basicOrders, o))
@@ -541,13 +552,6 @@ export function handleBlock(block: EthereumBlock): void {
               order.save()
 
               Utils.updateTotalFunds()
-
-              let fundContract = BetokenFund.bind(Address.fromString(fund.address))
-              let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
-              manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
-              manager.save()
-              fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
-              fund.save()
             }
 
             if (order.cycleNumber.equals(fund.cycleNumber) && !order.isSold) {
