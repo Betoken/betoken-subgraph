@@ -34,7 +34,7 @@ export let RISK_THRESHOLD_TIME = BigInt.fromI32(3 * 24 * 60 * 60).toBigDecimal()
 export let ETH_ADDR = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 export let RECORD_INTERVAL = BigInt.fromI32(24 * 60 * 60 / 15) // 24 hours if avg block time is 15 seconds
 export let PRICE_INTERVAL = BigInt.fromI32(5 * 60 / 15) // 5 minutes if avg block time is 15 seconds
-export let LATEST_BLOCK = BigInt.fromI32(9195948 + 4000)
+export let LATEST_BLOCK = BigInt.fromI32(9215977 + 4000)
 
 // Helpers
 
@@ -114,17 +114,13 @@ export function pTokenPrice(_addr: Address): BigDecimal {
   if (tokenPrice.reverted) {
     return ZERO_DEC
   }
-  let priceInUnderlying = normalize(tokenPrice.value)
-  let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
-  if (!tokenInfo.type) {
-    // long token, underlying is DAI
-    return priceInUnderlying
-  } else {
-    // short token, underlying is token
-    let underlying = getPTokenUnderlyingToken(_addr)
-    let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
-    return priceInUnderlying.times(underlyingPrice)
+  let underlyingPerPToken = normalize(tokenPrice.value)
+  let underlying = getPTokenUnderlyingToken(_addr)
+  let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
+  if (underlying.equals(DAI_ADDR())) {
+    return underlyingPerPToken
   }
+  return underlyingPerPToken.times(underlyingPrice)
 }
 
 export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
@@ -134,17 +130,13 @@ export function pTokenLiquidationPrice(_addr: Address): BigDecimal {
   if (liquidationPrice.reverted) {
     return ZERO_DEC
   }
-  let priceInUnderlying = normalize(liquidationPrice.value)
-  let tokenInfo = assetPTokenAddressToInfo(_addr.toHex())
-  if (!tokenInfo.type) {
-    // long token, underlying is DAI
-    return priceInUnderlying
-  } else {
-    // short token, underlying is token
-    let underlying = getPTokenUnderlyingToken(_addr)
-    let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
-    return priceInUnderlying.times(underlyingPrice)
+  let underlyingPerPToken = normalize(liquidationPrice.value)
+  let underlying = getPTokenUnderlyingToken(_addr)
+  let underlyingPrice = getPriceOfToken(underlying, ZERO_INT)
+  if (underlying.equals(DAI_ADDR())) {
+    return underlyingPerPToken
   }
+  return underlyingPerPToken.times(underlyingPrice)
 }
 
 export function pTokenTradeTokenPrice(_addr: Address): BigDecimal {
