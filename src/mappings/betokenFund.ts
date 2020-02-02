@@ -90,8 +90,8 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
       let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
       roi.manager = manager.id
       roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
-      log.info("ROI: manager: {}, kairoBalance: {}, baseStake: {}", [manager.id, manager.kairoBalance.toString(), manager.baseStake.toString()])
       roi.roi = manager.baseStake.equals(Utils.ZERO_DEC) ? Utils.ZERO_DEC : manager.kairoBalance.div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100'))
+      roi.kairoBalance = manager.kairoBalance
       roi.save()
       let roiHistory = manager.roiHistory
       roiHistory.push(roi.id)

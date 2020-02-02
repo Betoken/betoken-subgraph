@@ -152,6 +152,7 @@ type ManagerROI @entity {
   manager: String!
   cycle: BigInt!
   roi: BigDecimal!
+  kairoBalance: BigDecimal!
 }
 
 type TokenPrice @entity {
