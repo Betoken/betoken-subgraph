@@ -15,6 +15,7 @@ import {
   ProposedCandidate as ProposedCandidateEvent,
   Voted as VotedEvent,
   FinalizedNextVersion as FinalizedNextVersionEvent,
+  BurnDeadmanCall,
   BetokenFund,
 } from "../../generated/templates/BetokenFund/BetokenFund"
 
@@ -381,6 +382,19 @@ export function handleRegister(event: RegisterEvent): void {
   let kairo = MiniMeToken.bind(fundContract.controlTokenAddr())
   fund.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
   fund.save()
+}
+
+export function handleBurnDeadman(call: BurnDeadmanCall): void {
+  let managerAddr = call.inputs._deadman
+  let manager = Manager.load(managerAddr.toHex());
+  manager.kairoBalance = Utils.ZERO_DEC
+  manager.baseStake = manager.kairoBalance
+  manager.kairoBalanceWithStake = manager.kairoBalance
+  manager.riskTaken = Utils.ZERO_DEC
+  manager.riskThreshold = manager.baseStake.times(Utils.RISK_THRESHOLD_TIME)
+  manager.upgradeSignal = false;
+  manager.votes = new Array<string>();
+  manager.save()
 }
 
 export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {

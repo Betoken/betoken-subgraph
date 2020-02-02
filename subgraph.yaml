@@ -93,6 +93,9 @@ templates:
           handler: handleVoted
         - event: FinalizedNextVersion(indexed uint256,address)
           handler: handleFinalizedNextVersion
+      callHandlers:
+        - function: burnDeadman(address)
+          handler: handleBurnDeadman
   - kind: ethereum/contract
     name: MiniMeToken
     network: mainnet
