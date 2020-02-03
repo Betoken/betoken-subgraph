@@ -72,15 +72,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   entity.totalFundsAtPhaseStart = entity.totalFundsInDAI
   entity.save()
 
-  let caller = Manager.load(event.transaction.from.toHex())
-  if (caller != null) {
-    caller.kairoBalance = Utils.normalize(kairo.balanceOf(event.transaction.from))
-    caller.save()
-    let fundEntity = Fund.load(Utils.FUND_ID)
-    fundEntity.kairoTotalSupply = Utils.normalize(kairo.totalSupply())
-    fundEntity.save()
-  }
-
+  let caller = event.transaction.from.toHex()
   for (let m: i32 = 0; m < entity.managers.length; m++) {
     let manager = Manager.load(Utils.getArrItem<string>(entity.managers, m))
     manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
@@ -90,7 +82,8 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
       let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
       roi.manager = manager.id
       roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
-      roi.roi = manager.baseStake.equals(Utils.ZERO_DEC) ? Utils.ZERO_DEC : manager.kairoBalance.div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100'))
+      let callReward = manager.id === caller ? Utils.CALLER_REWARD : Utils.ZERO_DEC;
+      roi.roi = manager.baseStake.equals(Utils.ZERO_DEC) ? Utils.ZERO_DEC : manager.kairoBalance.minus(callReward).div(manager.baseStake).minus(BigDecimal.fromString('1')).times(BigDecimal.fromString('100'))
       roi.kairoBalance = manager.kairoBalance
       roi.save()
       let roiHistory = manager.roiHistory
