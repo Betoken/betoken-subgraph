@@ -51,7 +51,8 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   Utils.updateTotalFunds()
 
   // record cycle ROI
-  if (event.params._newPhase.equals(Utils.ZERO_INT) && !event.params._cycleNumber.equals(BigInt.fromI32(1)) && event.params._cycleNumber.equals(BigInt.fromI32(entity.cycleROIHistory.length + 2))) {
+  let shouldRecordROI = event.params._newPhase.equals(Utils.ZERO_INT) && !event.params._cycleNumber.equals(BigInt.fromI32(1)) && event.params._cycleNumber.equals(BigInt.fromI32(entity.cycleROIHistory.length + 2))
+  if (shouldRecordROI) {
     let currentTotalFundsInDAI = entity.totalFundsInDAI
     let cycleROI = currentTotalFundsInDAI.minus(entity.totalFundsAtPhaseStart).div(entity.totalFundsAtPhaseStart)
     let cycleROIHistory = entity.cycleROIHistory
@@ -78,7 +79,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
     manager.kairoBalance = Utils.normalize(kairo.balanceOf(Address.fromString(manager.id)))
 
     // record manager ROI
-    if (event.params._newPhase.toI32() == 0) {
+    if (shouldRecordROI) {
       let roi = new ManagerROI(manager.id + '-' + entity.cycleNumber.toString())
       roi.manager = manager.id
       roi.cycle = entity.cycleNumber.minus(BigInt.fromI32(1))
