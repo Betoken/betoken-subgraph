@@ -49,6 +49,7 @@ export function handleChangedPhase(event: ChangedPhaseEvent): void {
   let kairo = MiniMeToken.bind(fund.controlTokenAddr())
 
   Utils.updateTotalFunds()
+  entity.totalFundsInDAI = Utils.normalize(event.params._totalFundsInDAI)
 
   // record cycle ROI
   let shouldRecordROI = event.params._newPhase.equals(Utils.ZERO_INT) && !event.params._cycleNumber.equals(BigInt.fromI32(1)) && event.params._cycleNumber.equals(BigInt.fromI32(entity.cycleROIHistory.length + 2))
