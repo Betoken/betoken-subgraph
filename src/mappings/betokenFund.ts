@@ -396,6 +396,11 @@ export function handleSignaledUpgrade(event: SignaledUpgradeEvent): void {
   let manager = Manager.load(event.params._sender.toHex())
   manager.upgradeSignal = event.params._inSupport
   manager.save()
+
+  let entity = Fund.load(Utils.FUND_ID)
+  let fund = BetokenFund.bind(event.address)
+  entity.upgradeSignalStrength = Utils.normalize(fund.upgradeSignalStrength(entity.cycleNumber))
+  entity.save()
 }
 
 export function handleDeveloperInitiatedUpgrade(
