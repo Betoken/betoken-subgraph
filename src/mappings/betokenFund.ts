@@ -559,7 +559,7 @@ export function handleBlock(block: EthereumBlock): void {
             // Ad hoc fix: sometimes sold compound order isn't registered by the event handler
             // So check the order's status from the contract
             let contract = CompoundOrderContract.bind(Address.fromString(order.orderAddress))
-            if (contract.isSold() && !order.isSold) {
+            if (contract.isSold() && !order.isSold && contract.outputAmount().gt(Utils.ZERO_INT)) {
               order.isSold = true
               order.sellTime = block.timestamp;
               order.outputAmount = Utils.normalize(contract.outputAmount())
